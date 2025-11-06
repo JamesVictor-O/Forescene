@@ -6,7 +6,6 @@ import SidebarLeft from '@/components/dashboard/SidebarLeft';
 import StatsOverview from '@/components/dashboard/StatsOverview';
 import CategoryFilter from '@/components/dashboard/CategoryFilter';
 import PredictionsFeed from '@/components/dashboard/PredictionsFeed';
-import VideoFeed from '@/components/dashboard/VideoFeed';
 import MixedFeed from '@/components/dashboard/MixedFeed';
 import RightSidebar from '@/components/dashboard/RightSidebar';
 import MobileBottomNav from '@/components/dashboard/MobileBottomNav';
