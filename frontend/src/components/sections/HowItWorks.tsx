@@ -9,12 +9,12 @@ type StepProps = {
 function Step({ number, title, description }: StepProps) {
   return (
     <div className="flex gap-4">
-      <div className="w-10 h-10 bg-zinc-950 border border-zinc-800 flex items-center justify-center font-bold flex-shrink-0">
+      <div className="w-10 h-10 bg-zinc-900/50 border border-zinc-800/50 flex items-center justify-center font-semibold text-sm flex-shrink-0 rounded-sm">
         {number}
       </div>
       <div>
-        <h4 className="font-semibold mb-1">{title}</h4>
-        <p className="text-zinc-500 text-sm">{description}</p>
+        <h4 className="font-semibold mb-2 text-base">{title}</h4>
+        <p className="text-zinc-400 text-sm leading-relaxed font-light">{description}</p>
       </div>
     </div>
   );
@@ -22,15 +22,18 @@ function Step({ number, title, description }: StepProps) {
 
 export default function HowItWorks() {
   return (
-    <section id="how-it-works" className="py-20 px-4 bg-zinc-900 border-y border-zinc-800">
-      <div className="max-w-7xl mx-auto">
+    <section id="how-it-works" className="py-24 px-4 relative">
+      <div className="max-w-6xl mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-5xl font-bold mb-4">How It Works</h2>
+          <div className="text-zinc-500 text-sm uppercase tracking-wider mb-4 font-light">
+            How It Works
+          </div>
+          <h2 className="text-4xl md:text-6xl font-bold mb-6">How It Works</h2>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-12">
-          <div>
-            <div className="inline-block px-4 py-1 bg-cyan-500 text-zinc-950 font-semibold mb-6">
+        <div className="grid md:grid-cols-2 gap-8">
+          <div className="p-8 bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-medium mb-8 rounded-sm">
               For Predictors
             </div>
 
@@ -58,8 +61,8 @@ export default function HowItWorks() {
             </div>
           </div>
 
-          <div>
-            <div className="inline-block px-4 py-1 bg-purple-500 text-zinc-950 font-semibold mb-6">
+          <div className="p-8 bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-sm">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-medium mb-8 rounded-sm">
               For Investors
             </div>
 
