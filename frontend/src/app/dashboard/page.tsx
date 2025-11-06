@@ -29,14 +29,18 @@ export default function Dashboard() {
     <div className="min-h-screen bg-zinc-950 text-white font-pop">
       <TopNav />
 
-      <div className="flex pt-16">
+      <div className="flex pt-14 sm:pt-16">
+        {/* Sidebar - hidden on mobile */}
         <SidebarLeft activeTab={activeTab} setActiveTab={setActiveTab} userStats={userStats} />
 
-        <main className="flex-1 lg:ml-64 p-6">
+        {/* Main content - mobile first */}
+        <main className="flex-1 lg:ml-64 pb-20 sm:pb-6">
           {activeTab === 'feed' ? (
-            <MixedFeed />
+            <div className="px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6">
+              <MixedFeed />
+            </div>
           ) : (
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 pt-4 sm:pt-6">
               <StatsOverview userStats={userStats} />
               <CategoryFilter categories={categories} selectedCategory={selectedCategory} setSelectedCategory={setSelectedCategory} />
               <PredictionsFeed predictions={predictions.filter(p => selectedCategory === 'all' || p.category === selectedCategory)} />
@@ -44,9 +48,11 @@ export default function Dashboard() {
           )}
         </main>
 
+        {/* Right sidebar - hidden on mobile/tablet */}
         <RightSidebar />
       </div>
 
+      {/* Mobile bottom nav */}
       <MobileBottomNav />
     </div>
   );

@@ -1,44 +1,77 @@
 "use client";
 
-import React from 'react';
-import { Play, Search, Plus, Bell } from 'lucide-react';
+import React, { useState } from 'react';
+import { Search, Plus, Bell } from 'lucide-react';
+import Image from 'next/image';
 
 export default function TopNav() {
-  return (
-    <nav className="fixed top-0 w-full bg-zinc-950 border-b border-zinc-800 z-50">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center space-x-8">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-cyan-500 flex items-center justify-center">
-                <Play className="w-5 h-5 text-zinc-950" fill="currentColor" />
-              </div>
-              <span className="text-xl font-bold">Forescene</span>
-            </div>
+  const [searchOpen, setSearchOpen] = useState(false);
 
-            <div className="hidden md:flex items-center bg-zinc-900 border border-zinc-800 px-4 py-2 w-96">
-              <Search className="w-4 h-4 text-zinc-500 mr-2" />
+  return (
+    <nav className="fixed top-0 w-full bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800/50 z-50">
+      <div className="max-w-6xl mx-auto px-3 sm:px-4">
+        <div className="flex justify-between items-center h-14 sm:h-16">
+          {/* Logo - mobile first */}
+          <div className="flex items-center space-x-2">
+            <Image src="/Logo2.png" alt="Forescene" width={28} height={28} className="sm:w-8 sm:h-8 object-contain" />
+            <span className="text-sm sm:text-base font-medium text-zinc-300 hidden sm:inline">FORESCENE</span>
+          </div>
+
+          {/* Search - mobile toggle */}
+          <div className="flex-1 max-w-md mx-2 sm:mx-4 hidden sm:flex items-center">
+            <div className="relative w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
               <input 
                 type="text" 
-                placeholder="Search predictions, users..." 
-                className="bg-transparent outline-none text-sm w-full text-white placeholder-zinc-500"
+                placeholder="Search..." 
+                className="w-full pl-10 pr-4 py-2 bg-zinc-900/50 border border-zinc-800/50 rounded-sm text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
               />
             </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <button className="px-4 py-2 bg-cyan-500 text-zinc-950 font-semibold text-sm hover:bg-cyan-400 transition flex items-center">
-              <Plus className="w-4 h-4 mr-1" />
-              Create Prediction
+          {/* Actions - mobile optimized */}
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Mobile search button */}
+            <button 
+              onClick={() => setSearchOpen(!searchOpen)}
+              className="sm:hidden w-9 h-9 bg-zinc-900/50 border border-zinc-800/50 flex items-center justify-center rounded-sm hover:border-cyan-500/50 transition-colors"
+            >
+              <Search className="w-4 h-4 text-zinc-400" />
             </button>
-            <button className="w-10 h-10 bg-zinc-900 border border-zinc-800 flex items-center justify-center hover:border-cyan-500 transition">
-              <Bell className="w-5 h-5" />
+
+            {/* Create button - mobile icon only */}
+            <button className="w-9 h-9 sm:w-auto sm:px-4 sm:py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium text-xs sm:text-sm hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all rounded-sm flex items-center justify-center">
+              <Plus className="w-4 h-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">Create</span>
             </button>
-            <button className="w-10 h-10 bg-cyan-500 text-zinc-950 font-bold flex items-center justify-center">
+
+            {/* Notifications */}
+            <button className="w-9 h-9 bg-zinc-900/50 border border-zinc-800/50 flex items-center justify-center rounded-sm hover:border-cyan-500/50 transition-colors relative">
+              <Bell className="w-4 h-4 text-zinc-400" />
+              <span className="absolute top-1 right-1 w-2 h-2 bg-cyan-500 rounded-full" />
+            </button>
+
+            {/* Profile */}
+            <button className="w-9 h-9 bg-cyan-500/20 border border-cyan-500/30 text-cyan-400 font-bold text-xs flex items-center justify-center rounded-sm hover:border-cyan-500/50 transition-colors">
               JD
             </button>
           </div>
         </div>
+
+        {/* Mobile search bar */}
+        {searchOpen && (
+          <div className="sm:hidden pb-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+              <input 
+                type="text" 
+                placeholder="Search predictions, users..." 
+                className="w-full pl-10 pr-4 py-2.5 bg-zinc-900/50 border border-zinc-800/50 rounded-sm text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                autoFocus
+              />
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );

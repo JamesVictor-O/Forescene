@@ -9,24 +9,24 @@ type Props = {
 
 export default function CategoryFilter({ categories, selectedCategory, setSelectedCategory }: Props) {
   return (
-    <div className="flex items-center justify-between mb-6">
-      <div className="flex gap-2 overflow-x-auto">
+    <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2 sm:gap-3">
+      <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-3 sm:-mx-0 px-3 sm:px-0 flex-1">
         {categories.map(cat => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 text-sm font-semibold whitespace-nowrap transition ${
+            className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm font-medium whitespace-nowrap transition-all rounded-sm ${
               selectedCategory === cat
-                ? 'bg-cyan-500 text-zinc-950'
-                : 'bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white'
+                ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-400'
+                : 'bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 text-zinc-400 hover:text-white hover:border-zinc-700/50'
             }`}
           >
             {cat.charAt(0).toUpperCase() + cat.slice(1)}
           </button>
         ))}
       </div>
-      <button className="p-2 bg-zinc-900 border border-zinc-800 hover:border-cyan-500 transition">
-        <Filter className="w-5 h-5" />
+      <button className="p-2 sm:p-2.5 bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 hover:border-cyan-500/50 transition-all rounded-sm flex-shrink-0">
+        <Filter className="w-4 h-4 sm:w-5 sm:h-5 text-zinc-400" />
       </button>
     </div>
   );
