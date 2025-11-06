@@ -1,0 +1,29 @@
+# Node/Next
+node_modules/
+.next/
+.vercel/
+dist/
+out/
+coverage/
+*.log
+*.log.*
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Editor
+.idea/
+.vscode/
+
+# Frontend build artifacts
+frontend/.next/
+frontend/node_modules/
+frontend/.turbo/
+
+# Contracts (tracked in separate repo)
+contracts/
+
