@@ -19,12 +19,9 @@ export default function Hero() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <button className="px-8 py-4 bg-cyan-500 text-zinc-950 font-semibold text-lg hover:bg-cyan-400 transition flex items-center justify-center">
-            Get Early Access
+          <button className="px-8 py-4 bg-cyan-500 text-zinc-950 font-semibold text-lg hover:bg-cyan-400 transition flex items-center justify-center rounded-md">
+            Get Started
             <ChevronRight className="ml-2" />
-          </button>
-          <button className="px-8 py-4 bg-zinc-900 border border-zinc-800 font-semibold text-lg hover:bg-zinc-800 transition">
-            Watch Demo
           </button>
         </div>
 

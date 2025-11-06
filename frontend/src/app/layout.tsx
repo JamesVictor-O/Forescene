@@ -24,23 +24,27 @@ export const metadata: Metadata = {
   description: "Create and back short-form video or text predictions. Stake belief or doubt and build your on-chain reputation.",
   metadataBase: new URL("https://forescene.app"),
   icons: {
-    icon: [{ url: "/logo2.png" }, { url: "/favicon.ico" }],
-    shortcut: ["/logo2.png"],
-    apple: ["/logo2.png"],
+    icon: [
+      { url: "/Logo2.png", sizes: "any" },
+      { url: "/Logo2.png", type: "image/png", sizes: "32x32" },
+      { url: "/Logo2.png", type: "image/png", sizes: "192x192" },
+    ],
+    shortcut: ["/Logo2.png"],
+    apple: ["/Logo2.png"],
   },
   openGraph: {
     title: "Forescene",
     description: "Video + text predictions with staking. TikTok-style, on-chain reputation.",
     url: "https://forescene.app",
     siteName: "Forescene",
-    images: [{ url: "/logo2.png" }],
+    images: [{ url: "/Logo2.png" }],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Forescene",
     description: "Video + text predictions with staking. TikTok-style, on-chain reputation.",
-    images: ["/logo2.png"],
+    images: ["/Logo2.png"],
   },
 };
 
