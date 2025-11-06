@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://forescene.app/sitemap.xml
+
