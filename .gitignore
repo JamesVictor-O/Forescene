@@ -24,6 +24,9 @@ frontend/.next/
 frontend/node_modules/
 frontend/.turbo/
 
-# Contracts (tracked in separate repo)
-contracts/
+# Contracts build artifacts (source code is tracked)
+contracts/out/
+contracts/cache/
+contracts/broadcast/
+contracts/lib/
 

@@ -31,13 +31,19 @@ interface IPredictionMarket {
 
     event PayoutClaimed(uint256 indexed predictionId, address indexed user, uint256 amount);
 
+    event CopiedPrediction(address indexed copier, uint256 indexed predictionId, uint256 amount);
+
     function stakeFor(uint256 predictionId, uint256 amount) external;
 
     function stakeAgainst(uint256 predictionId, uint256 amount) external;
 
     function quickStake(uint256 predictionId, Side side, uint256 presetAmount) external;
 
+    function copyPrediction(uint256 predictionId, uint256 amount) external;
+
     function quoteOdds(uint256 predictionId, Side side, uint256 amount) external view returns (uint256 odds);
+
+    function resolvePrediction(uint256 predictionId, Side outcome) external;
 
     function claimPayout(uint256 predictionId) external;
 

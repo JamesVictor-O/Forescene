@@ -23,6 +23,7 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
         uint256 correctPredictions;
         uint256 totalEarnings;
         uint256 createdAt;
+        uint256 copiedPredictions;
     }
 
     mapping(address => uint256) private _ownerToTokenId; // User address to token ID
@@ -38,6 +39,7 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
         address indexed user, uint256 indexed predictionId, bool wasCorrect, uint256 stake, uint256 odds
     );
     event ScoreUpdated(address indexed user, uint256 newScore);
+    event CopyRecorded(address indexed user, uint256 indexed predictionId, uint256 amount);
 
     // Errors
     error AlreadyMinted();
@@ -66,26 +68,7 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
     function mintPortfolio(address to) external onlyMinter returns (uint256) {
         if (to == address(0)) revert InvalidAddress();
         if (_ownerToTokenId[to] != 0) revert AlreadyMinted();
-
-        uint256 tokenId = _nextTokenId++;
-        _ownerToTokenId[to] = tokenId;
-
-        _portfolios[tokenId] = Portfolio({
-            tokenId: tokenId,
-            owner: to,
-            prophetScore: 0,
-            totalPredictions: 0,
-            correctPredictions: 0,
-            totalEarnings: 0,
-            createdAt: block.timestamp
-        });
-
-        _mint(to, tokenId);
-        _setTokenURI(tokenId, string(abi.encodePacked(_baseTokenURI, _toString(tokenId))));
-
-        emit PortfolioMinted(to, tokenId);
-
-        return tokenId;
+        return _createPortfolio(to);
     }
 
     /**
@@ -121,6 +104,26 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
         emit ReputationUpdated(user, predictionId, wasCorrect, stake, odds);
     }
 
+    function recordCopy(address user, uint256 predictionId, uint256 amount) external onlyMinter {
+        if (user == address(0)) revert InvalidAddress();
+
+        uint256 tokenId = _ownerToTokenId[user];
+        if (tokenId == 0) {
+            tokenId = _createPortfolio(user);
+        }
+
+        Portfolio storage portfolio = _portfolios[tokenId];
+        portfolio.copiedPredictions += 1;
+
+        uint256 normalizedAmount = amount / 1e18;
+        if (normalizedAmount == 0) {
+            normalizedAmount = 1;
+        }
+        portfolio.prophetScore += 5 + normalizedAmount;
+
+        emit CopyRecorded(user, predictionId, amount);
+    }
+
     /**
      * @notice Set prophet score (for off-chain calculation)
      * @param user User address
@@ -154,6 +157,12 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
         uint256 tokenId = _ownerToTokenId[user];
         if (tokenId == 0) return 0;
         return _portfolios[tokenId].prophetScore;
+    }
+
+    function getCopiedCount(address user) external view returns (uint256) {
+        uint256 tokenId = _ownerToTokenId[user];
+        if (tokenId == 0) return 0;
+        return _portfolios[tokenId].copiedPredictions;
     }
 
     /**
@@ -200,6 +209,27 @@ contract ProphetPortfolio is ERC721URIStorage, Ownable {
             value /= 10;
         }
         return string(buffer);
+    }
+
+    function _createPortfolio(address to) internal returns (uint256 tokenId) {
+        tokenId = _nextTokenId++;
+        _ownerToTokenId[to] = tokenId;
+
+        _portfolios[tokenId] = Portfolio({
+            tokenId: tokenId,
+            owner: to,
+            prophetScore: 0,
+            totalPredictions: 0,
+            correctPredictions: 0,
+            totalEarnings: 0,
+            createdAt: block.timestamp,
+            copiedPredictions: 0
+        });
+
+        _mint(to, tokenId);
+        _setTokenURI(tokenId, string(abi.encodePacked(_baseTokenURI, _toString(tokenId))));
+
+        emit PortfolioMinted(to, tokenId);
     }
 }
 

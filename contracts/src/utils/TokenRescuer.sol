@@ -3,14 +3,16 @@ pragma solidity ^0.8.24;
 
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {FSPausable} from "../core/Pausable.sol";
 
 /**
  * @title TokenRescuer
  * @notice Utility for rescuing stuck tokens
  * @dev Can be inherited by contracts that need rescue functionality
  */
-abstract contract TokenRescuer is Ownable {
+abstract contract TokenRescuer is FSPausable {
+    constructor(address initialOwner) FSPausable(initialOwner) {}
+
     using SafeERC20 for IERC20;
 
     event TokensRescued(address indexed token, address indexed to, uint256 amount);
@@ -22,7 +24,7 @@ abstract contract TokenRescuer is Ownable {
      * @param amount Amount to rescue
      */
     function rescueTokens(address token, address to, uint256 amount) external onlyOwner {
-        if (to == address(0)) revert();
+        require(to != address(0), "TokenRescuer: zero address");
 
         if (token == address(0)) {
             (bool success,) = to.call{value: amount}("");

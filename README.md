@@ -157,6 +157,98 @@ Forescene blurs the line between *social media* and *financial markets* — maki
 In a world full of noise, **Forescene** rewards clarity, foresight, and accuracy.
 
 ---
+%% Forescene architecture (Mermaid)
+flowchart LR
+  subgraph USER_LAYER["User / Social Layer"]
+    U1[Mobile App (Next.js / React)] -->|record video| V[Video Upload (IPFS CID)]
+    U1 -->|wallet actions| Wallet[Wallet (Metamask / WalletConnect)]
+    U1 -->|interact| Feed[Social Feed / Duets / Copy]
+  end
+
+  subgraph AI_LAYER["AI & Parsing"]
+    V --> STT[Speech-to-Text (Whisper)]
+    STT --> NLP[LLM Parser (extract: event, condition, deadline)]
+    NLP -->|structured claim| BackendAPI[Backend API]
+    NLP -->|flag/verifiability| VerifFilter[Verifiability Filter]
+  end
+
+  subgraph BACKEND_DB["Backend & Data Layer"]
+    BackendAPI --> DB[Postgres / Prisma (claims, users, social)]
+    BackendAPI --> SharedABI[Shared / exported ABIs & metadata]
+    BackendAPI --> EventQueue[Event Queue / Worker (resolve jobs)]
+    DB -->|feeds feed UI| Feed
+  end
+
+  subgraph ONCHAIN["Smart Contracts (Foundry)"]
+    style ONCHAIN stroke:#333,stroke-width:2px
+    PredictionRegistry[core/PredictionRegistry.sol]
+    PredictionMarket[core/PredictionMarket.sol]
+    ResolutionOracle[core/ResolutionOracle.sol]
+    ProphetPortfolio[core/ProphetPortfolio.sol (ERC721)]
+    SocialMetrics[core/SocialMetrics.sol]
+    FSPausable[core/FSPausable.sol]
+    FeeRouter[core/FeeRouter.sol]
+    TemplateRegistry[core/TemplateRegistry.sol]
+    Treasury[core/Treasury.sol]
+    InsurancePool[core/InsurancePool.sol]
+    PriceFeedRouter[core/PriceFeedRouter.sol]
+    CreatorStaking[core/CreatorStaking.sol]
+    Squad[core/Squad.sol]
+    PredictionPosition[core/PredictionPosition.sol (ERC1155)]
+    FraudDetection[core/FraudDetection.sol]
+    CrossChainBridge[core/CrossChainBridge.sol]
+    Governance[governance/CreatorDAO.sol]
+  end
+
+  %% Connections between backend and contracts
+  BackendAPI -->|create & sign tx| PredictionRegistry
+  Wallet -->|tx: create / stake / trade| PredictionMarket
+  PredictionMarket --> FeeRouter
+  FeeRouter --> Treasury
+  PredictionRegistry --> TemplateRegistry
+  ResolutionOracle -->|resolve call| PredictionMarket
+  ResolutionOracle -->|finalize| PredictionRegistry
+  PredictionMarket -->|mint position NFT| PredictionPosition
+  PredictionRegistry --> ProphetPortfolio
+  ProphetPortfolio --> SharedABI
+  SocialMetrics --> DB
+  CreatorStaking --> ProphetPortfolio
+  Squad --> Treasury
+  InsurancePool --> Treasury
+  PriceFeedRouter --> ResolutionOracle
+  PriceFeedRouter -->|price feeds| Chainlink[Chainlink / Pyth / Custom APIs]
+  Chainlink --> ResolutionOracle
+
+  %% Oracles and external data
+  subgraph ORACLES["External Oracles & Data"]
+    Chainlink
+    SportsAPI[Sports APIs]
+    BoxOffice[BoxOffice / Streaming APIs]
+    Government[Official Results / Government Data]
+  end
+
+  Chainlink --> PriceFeedRouter
+  SportsAPI --> PriceFeedRouter
+  BoxOffice --> PriceFeedRouter
+  Government --> PriceFeedRouter
+
+  %% Event resolution flow
+  EventQueue --> ResolutionOracle
+  ResolutionOracle -->|dispute window| Dispute[Dispute Module / Bonding]
+  Dispute --> InsurancePool
+  Dispute --> Governance
+
+  %% Social / UX loops
+  PredictionMarket -->|events/emits| BackendAPI
+  BackendAPI -->|update user stats| DB
+  DB --> Feed
+
+  %% Admin / Governance
+  Governance --> TemplateRegistry
+  Governance --> FeeRouter
+  Governance --> Treasury
+  Governance --> ResolutionOracle
+
 
 ## 🧑‍💻 Development Setup
 

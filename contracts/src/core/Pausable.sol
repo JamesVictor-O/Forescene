@@ -8,7 +8,9 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
  * @notice Simple pausable functionality
  * @dev Can be inherited by contracts that need pause functionality
  */
-abstract contract Pausable is Ownable {
+abstract contract FSPausable is Ownable {
+    constructor(address initialOwner) Ownable(initialOwner) {}
+
     bool private _paused;
 
     event Paused(address account);

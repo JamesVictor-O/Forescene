@@ -7,6 +7,11 @@ import {PredictionRegistry} from "../src/core/PredictionRegistry.sol";
 import {PredictionMarket} from "../src/core/PredictionMarket.sol";
 import {ResolutionOracle} from "../src/core/ResolutionOracle.sol";
 import {ProphetPortfolio} from "../src/core/ProphetPortfolio.sol";
+import {SocialMetrics} from "../src/core/SocialMetrics.sol";
+import {FSPausable} from "../src/core/Pausable.sol";
+import {IPredictionMarket} from "../src/interfaces/IPredictionMarket.sol";
+import {IPredictionRegistry} from "../src/interfaces/IPredictionRegistry.sol";
+import {IResolutionOracle} from "../src/interfaces/IResolutionOracle.sol";
 
 contract PredictionMarketTest is Test {
     FORE public token;
@@ -14,11 +19,13 @@ contract PredictionMarketTest is Test {
     PredictionMarket public market;
     ResolutionOracle public oracle;
     ProphetPortfolio public portfolio;
+    SocialMetrics public social;
 
     address public owner = address(1);
     address public user1 = address(2);
     address public user2 = address(3);
     address public oracleAddress = address(4);
+    address public user3 = address(5);
 
     function setUp() public {
         vm.startPrank(owner);
@@ -29,15 +36,22 @@ contract PredictionMarketTest is Test {
         market = new PredictionMarket(owner, address(token), address(registry));
         oracle = new ResolutionOracle(owner, address(registry), address(market), owner);
         portfolio = new ProphetPortfolio(owner, address(market), "https://api.forescene.app/portfolio/");
+        social = new SocialMetrics(owner, address(token), owner);
 
         // Set up permissions
         market.setOracle(address(oracle));
         portfolio.setMinter(address(market), true);
+        market.setProphetPortfolio(address(portfolio));
+        market.setSocialMetrics(address(social));
+        registry.setMarket(address(market));
+        registry.setSocialMetrics(address(social));
+        social.setMarket(address(market));
         oracle.setOracle(oracleAddress, true);
 
         // Distribute tokens
         token.transfer(user1, 10000 * 1e18);
         token.transfer(user2, 10000 * 1e18);
+        token.transfer(user3, 10000 * 1e18);
 
         vm.stopPrank();
     }
@@ -46,7 +60,7 @@ contract PredictionMarketTest is Test {
         vm.prank(user1);
         uint256 predictionId = registry.createPrediction(
             "QmTest123",
-            PredictionRegistry.Format.VIDEO,
+            IPredictionRegistry.Format.VIDEO,
             "crypto",
             block.timestamp + 7 days,
             500 // 5% creator fee
@@ -63,7 +77,7 @@ contract PredictionMarketTest is Test {
         // Create prediction
         vm.prank(user1);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", PredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
         );
 
         // Stake FOR
@@ -79,18 +93,33 @@ contract PredictionMarketTest is Test {
     function testQuoteOdds() public {
         vm.prank(user1);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", PredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
         );
 
-        uint256 odds = market.quoteOdds(predictionId, PredictionMarket.Side.FOR, 100 * 1e18);
+        uint256 odds = market.quoteOdds(predictionId, IPredictionMarket.Side.FOR, 100 * 1e18);
         assertGt(odds, 1e18); // Should be > 1x
+    }
+
+    function testQuickStakeUsesPreset() public {
+        vm.prank(user1);
+        uint256 predictionId = registry.createPrediction(
+            "QmQuick", IPredictionRegistry.Format.TEXT, "macro", block.timestamp + 5 days, 400
+        );
+
+        vm.startPrank(user2);
+        token.approve(address(market), 200 * 1e18);
+        market.quickStake(predictionId, IPredictionMarket.Side.FOR, 0);
+        vm.stopPrank();
+
+        PredictionMarket.Position memory pos = market.getPosition(predictionId, user2);
+        assertEq(pos.forAmount, market.presetAmounts(0));
     }
 
     function testResolveAndClaim() public {
         // Create and stake
         vm.prank(user1);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", PredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 1 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 1 days, 500
         );
 
         vm.startPrank(user2);
@@ -98,16 +127,21 @@ contract PredictionMarketTest is Test {
         market.stakeFor(predictionId, 100 * 1e18);
         vm.stopPrank();
 
-        // Lock prediction
-        vm.warp(block.timestamp + 1 days - 1 hours);
+        vm.startPrank(user3);
+        token.approve(address(market), 50 * 1e18);
+        market.stakeAgainst(predictionId, 50 * 1e18);
+        vm.stopPrank();
+
+        IPredictionRegistry.Prediction memory pred = registry.getPrediction(predictionId);
+        vm.warp(pred.lockTime + 1);
         registry.lockPrediction(predictionId);
 
         // Resolve
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(pred.deadline + 1);
         vm.prank(oracleAddress);
-        oracle.proposeOutcome(predictionId, ResolutionOracle.Outcome.FOR);
+        oracle.proposeOutcome(predictionId, IResolutionOracle.Outcome.FOR);
 
-        vm.warp(block.timestamp + 8 days);
+        vm.warp(block.timestamp + oracle.disputeWindow() + 1);
         oracle.finalizeOutcome(predictionId);
 
         // Claim payout
@@ -117,6 +151,69 @@ contract PredictionMarketTest is Test {
         uint256 balanceAfter = token.balanceOf(user2);
 
         assertGt(balanceAfter, balanceBefore);
+
+        PredictionMarket.Position memory posAfter = market.getPosition(predictionId, user2);
+        assertEq(posAfter.forAmount, 0);
+        assertEq(posAfter.againstAmount, 0);
+    }
+
+    function testPausePreventsStaking() public {
+        vm.prank(owner);
+        market.pause();
+
+        vm.prank(user1);
+        uint256 predictionId = registry.createPrediction(
+            "QmPause", IPredictionRegistry.Format.VIDEO, "culture", block.timestamp + 3 days, 0
+        );
+
+        vm.startPrank(user2);
+        token.approve(address(market), 50 * 1e18);
+        vm.expectRevert(FSPausable.ContractPaused.selector);
+        market.stakeFor(predictionId, 50 * 1e18);
+        vm.stopPrank();
+
+        vm.prank(owner);
+        market.unpause();
+    }
+
+    function testCopyPredictionRequiresIntegrations() public {
+        vm.prank(owner);
+        PredictionMarket isolated = new PredictionMarket(owner, address(token), address(registry));
+
+        vm.prank(owner);
+        isolated.setOracle(address(oracle));
+
+        vm.prank(user1);
+        uint256 predictionId = registry.createPrediction(
+            "QmCopyFail", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 4 days, 500
+        );
+
+        vm.startPrank(user2);
+        token.approve(address(isolated), 25 * 1e18);
+        vm.expectRevert(PredictionMarket.IntegrationNotConfigured.selector);
+        isolated.copyPrediction(predictionId, 25 * 1e18);
+        vm.stopPrank();
+    }
+
+    function testCopyPrediction() public {
+        vm.prank(user1);
+        uint256 predictionId = registry.createPrediction(
+            "QmCopy123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+        );
+
+        vm.startPrank(user2);
+        token.approve(address(market), 50 * 1e18);
+        market.copyPrediction(predictionId, 50 * 1e18);
+        vm.stopPrank();
+
+        PredictionMarket.Position memory pos = market.getPosition(predictionId, user2);
+        assertEq(pos.forAmount, 50 * 1e18);
+
+        assertTrue(registry.hasCopied(predictionId, user2));
+        assertEq(registry.getCopyCount(predictionId), 1);
+        assertEq(social.getPredictionCopyCount(predictionId), 1);
+        assertGt(social.getCreatorInfluence(user1), 0);
+        assertEq(portfolio.getCopiedCount(user2), 1);
     }
 }
 
