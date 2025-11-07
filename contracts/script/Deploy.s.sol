@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Script} from "forge-std/Script.sol";
+import {console} from "forge-std/console.sol";
 import {FORE} from "../src/tokens/FORE.sol";
 import {PredictionRegistry} from "../src/core/PredictionRegistry.sol";
 import {PredictionMarket} from "../src/core/PredictionMarket.sol";
@@ -49,9 +50,14 @@ contract Deploy is Script {
         SocialMetrics social = new SocialMetrics(deployer, address(token), deployer);
         console.log("SocialMetrics deployed at:", address(social));
 
-        // 7. Set up permissions
+        // 7. Set up permissions and integrations
         market.setOracle(address(oracle));
         portfolio.setMinter(address(market), true);
+        market.setProphetPortfolio(address(portfolio));
+        market.setSocialMetrics(address(social));
+        registry.setMarket(address(market));
+        registry.setSocialMetrics(address(social));
+        social.setMarket(address(market));
 
         vm.stopBroadcast();
 

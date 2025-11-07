@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
  */
 interface IResolutionOracle {
     enum Outcome {
+        INVALID,
         FOR,
-        AGAINST,
-        INVALID
+        AGAINST
     }
 
     struct Dispute {

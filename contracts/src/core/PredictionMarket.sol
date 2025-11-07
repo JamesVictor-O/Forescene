@@ -4,10 +4,10 @@ pragma solidity ^0.8.24;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IPredictionRegistry} from "../interfaces/IPredictionRegistry.sol";
 import {IPredictionMarket} from "../interfaces/IPredictionMarket.sol";
-import {Pausable} from "./Pausable.sol";
+import {ISocialMetrics} from "../interfaces/ISocialMetrics.sol";
+import {IProphetPortfolio} from "../interfaces/IProphetPortfolio.sol";
 import {TokenRescuer} from "../utils/TokenRescuer.sol";
 
 /**
@@ -15,7 +15,7 @@ import {TokenRescuer} from "../utils/TokenRescuer.sol";
  * @notice Market for staking on predictions using CPMM (Constant Product Market Maker)
  * @dev Handles staking, liquidity, odds calculation, and payouts
  */
-contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, TokenRescuer {
+contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     // Constants
@@ -34,6 +34,9 @@ contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, Token
     // Quick stake presets
     uint256[4] public presetAmounts = [10 * 1e18, 25 * 1e18, 50 * 1e18, 100 * 1e18];
 
+    ISocialMetrics public socialMetricsContract;
+    IProphetPortfolio public portfolioContract;
+
     // Oracle address (for resolution)
     address public oracle;
 
@@ -47,6 +50,7 @@ contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, Token
     error NoPosition();
     error NoPayout();
     error Unauthorized();
+    error IntegrationNotConfigured();
 
     modifier onlyValidPrediction(uint256 predictionId) {
         IPredictionRegistry.Prediction memory pred = registry.getPrediction(predictionId);
@@ -55,10 +59,7 @@ contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, Token
         _;
     }
 
-    constructor(address initialOwner, address _token, address _registry)
-        Pausable(initialOwner)
-        TokenRescuer(initialOwner)
-    {
+    constructor(address initialOwner, address _token, address _registry) TokenRescuer(initialOwner) {
         token = IERC20(_token);
         registry = IPredictionRegistry(_registry);
     }
@@ -89,6 +90,30 @@ contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, Token
         onlyValidPrediction(predictionId)
     {
         _stake(predictionId, Side.AGAINST, amount);
+    }
+
+    function copyPrediction(uint256 predictionId, uint256 amount)
+        external
+        nonReentrant
+        whenNotPaused
+        onlyValidPrediction(predictionId)
+    {
+        if (amount == 0) revert InvalidAmount();
+        if (address(socialMetricsContract) == address(0) || address(portfolioContract) == address(0)) {
+            revert IntegrationNotConfigured();
+        }
+
+        _stake(predictionId, Side.FOR, amount);
+
+        IPredictionRegistry.Prediction memory pred = registry.getPrediction(predictionId);
+        registry.recordCopy(predictionId, msg.sender);
+
+        uint256 influenceGain = (amount * socialMetricsContract.influenceFeeBps()) / BASIS_POINTS;
+        socialMetricsContract.registerCopy(predictionId, pred.creator, msg.sender, amount, influenceGain);
+
+        portfolioContract.recordCopy(msg.sender, predictionId, amount);
+
+        emit CopiedPrediction(msg.sender, predictionId, amount);
     }
 
     /**
@@ -317,6 +342,14 @@ contract PredictionMarket is IPredictionMarket, Pausable, ReentrancyGuard, Token
 
     function setOracle(address _oracle) external onlyOwner {
         oracle = _oracle;
+    }
+
+    function setSocialMetrics(address _social) external onlyOwner {
+        socialMetricsContract = ISocialMetrics(_social);
+    }
+
+    function setProphetPortfolio(address _portfolio) external onlyOwner {
+        portfolioContract = IProphetPortfolio(_portfolio);
     }
 }
 

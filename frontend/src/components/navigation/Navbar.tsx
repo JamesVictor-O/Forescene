@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Menu, X } from 'lucide-react';
 import Image from 'next/image';
+import ConnectWalletButton from '@/components/shared/ConnectWalletButton';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -19,9 +20,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-8">
             <a href="#features" className="text-zinc-400 hover:text-white text-sm font-light transition-colors uppercase tracking-wider">Features</a>
             <a href="#how-it-works" className="text-zinc-400 hover:text-white text-sm font-light transition-colors uppercase tracking-wider">How It Works</a>
-            <button className="px-5 py-2 bg-zinc-900/80 border border-zinc-800/50 text-white text-sm font-medium hover:border-cyan-500/50 transition-all duration-300 rounded-sm">
-              CONNECT WALLET
-            </button>
+            <ConnectWalletButton variant="glass" />
           </div>
 
           <button
@@ -40,9 +39,7 @@ export default function Navbar() {
           <div className="px-4 py-4 space-y-3">
             <a href="#features" className="block text-zinc-400 hover:text-white text-sm uppercase tracking-wider">Features</a>
             <a href="#how-it-works" className="block text-zinc-400 hover:text-white text-sm uppercase tracking-wider">How It Works</a>
-            <button className="w-full px-5 py-2 bg-zinc-900/80 border border-zinc-800/50 text-white text-sm font-medium rounded-sm">
-              CONNECT WALLET
-            </button>
+            <ConnectWalletButton variant="glass" fullWidth className="text-center" />
           </div>
         </div>
       )}

@@ -56,6 +56,18 @@ interface IPredictionRegistry {
 
     function setPredictionActive(uint256 predictionId, bool isActive) external;
 
+    function setPredictionStatus(uint256 predictionId, Status newStatus) external;
+
+    function setMarket(address market) external;
+
+    function setSocialMetrics(address social) external;
+
+    function recordCopy(uint256 predictionId, address copier) external;
+
+    function hasCopied(uint256 predictionId, address user) external view returns (bool);
+
+    function getCopyCount(uint256 predictionId) external view returns (uint256);
+
     function getPrediction(uint256 predictionId) external view returns (Prediction memory);
 
     function isLocked(uint256 predictionId) external view returns (bool);

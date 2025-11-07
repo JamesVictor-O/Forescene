@@ -33,19 +33,36 @@ contract SocialMetrics is Ownable, ReentrancyGuard {
     mapping(uint256 => Flag[]) private _flags; // predictionId => flags array
     mapping(uint256 => uint256) private _tips; // predictionId => total tips
     mapping(uint256 => address) private _creators; // predictionId => creator address
+    mapping(uint256 => uint256) private _copyCounts; // predictionId => copy count
+    mapping(address => uint256) private _influenceScores; // creator => influence score
+    mapping(address => uint256) private _copiedByUser; // copier => number of copies
 
     // Config
     uint16 public influenceFeeBps = 500; // 5% creator share from stakes
     address public treasury;
+    address public market;
 
     // Events
     event EvidenceSubmitted(uint256 indexed predictionId, address indexed submitter, string evidenceCID);
     event PredictionFlagged(uint256 indexed predictionId, address indexed flagger, string reasonCID);
     event TipReceived(uint256 indexed predictionId, address indexed tipper, uint256 amount);
+    event CopyRegistered(
+        uint256 indexed predictionId,
+        address indexed creator,
+        address indexed copier,
+        uint256 amount,
+        uint256 influenceGain
+    );
 
     // Errors
     error InvalidAmount();
     error InvalidAddress();
+    error Unauthorized();
+
+    modifier onlyMarket() {
+        if (msg.sender != market) revert Unauthorized();
+        _;
+    }
 
     constructor(address initialOwner, address _token, address _treasury) Ownable(initialOwner) {
         token = IERC20(_token);
@@ -101,6 +118,10 @@ contract SocialMetrics is Ownable, ReentrancyGuard {
         _creators[predictionId] = creator;
     }
 
+    function setMarket(address _market) external onlyOwner {
+        market = _market;
+    }
+
     /**
      * @notice Get evidence for a prediction
      * @param predictionId The prediction ID
@@ -126,6 +147,36 @@ contract SocialMetrics is Ownable, ReentrancyGuard {
      */
     function getTips(uint256 predictionId) external view returns (uint256) {
         return _tips[predictionId];
+    }
+
+    function getPredictionCopyCount(uint256 predictionId) external view returns (uint256) {
+        return _copyCounts[predictionId];
+    }
+
+    function getCreatorInfluence(address creator) external view returns (uint256) {
+        return _influenceScores[creator];
+    }
+
+    function getCopiesBy(address copier) external view returns (uint256) {
+        return _copiedByUser[copier];
+    }
+
+    function registerCopy(uint256 predictionId, address creator, address copier, uint256 amount, uint256 influenceGain)
+        external
+        onlyMarket
+    {
+        _copyCounts[predictionId] += 1;
+        _copiedByUser[copier] += 1;
+
+        if (_creators[predictionId] == address(0) && creator != address(0)) {
+            _creators[predictionId] = creator;
+        }
+
+        if (creator != address(0)) {
+            _influenceScores[creator] += influenceGain;
+        }
+
+        emit CopyRegistered(predictionId, creator, copier, amount, influenceGain);
     }
 
     // Admin functions

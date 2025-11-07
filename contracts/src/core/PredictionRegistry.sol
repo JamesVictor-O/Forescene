@@ -15,19 +15,24 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
     mapping(uint256 => Prediction) private _predictions;
     uint256 private _nextPredictionId = 1;
 
+    mapping(uint256 => mapping(address => bool)) private _copiers;
+    mapping(uint256 => uint256) private _copyCounts;
+
     // Config
     address public treasury;
     uint16 public defaultFeeBps = 250; // 2.5% default platform fee
     uint256 public minLockTime = 1 hours; // Minimum time before deadline to lock
+    address public market;
+    address public socialMetrics;
 
     // Errors
     error InvalidDeadline();
     error InvalidFee();
     error PredictionNotFound();
-    error PredictionLocked();
     error PredictionNotLocked();
     error Unauthorized();
     error InvalidStatus();
+    error AlreadyCopied();
 
     modifier onlyValidPrediction(uint256 predictionId) {
         if (_predictions[predictionId].id == 0) revert PredictionNotFound();
@@ -36,6 +41,11 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
 
     modifier onlyCreator(uint256 predictionId) {
         if (_predictions[predictionId].creator != msg.sender) revert Unauthorized();
+        _;
+    }
+
+    modifier onlyMarket() {
+        if (msg.sender != market) revert Unauthorized();
         _;
     }
 
@@ -119,9 +129,10 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
      */
     function setPredictionStatus(uint256 predictionId, Status newStatus)
         external
-        onlyOwner
+        override
         onlyValidPrediction(predictionId)
     {
+        if (msg.sender != owner() && msg.sender != market) revert Unauthorized();
         _predictions[predictionId].status = newStatus;
         emit PredictionStatusChanged(predictionId, newStatus);
     }
@@ -154,6 +165,20 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
         return _nextPredictionId;
     }
 
+    function recordCopy(uint256 predictionId, address copier) external onlyMarket onlyValidPrediction(predictionId) {
+        if (_copiers[predictionId][copier]) revert AlreadyCopied();
+        _copiers[predictionId][copier] = true;
+        _copyCounts[predictionId] += 1;
+    }
+
+    function hasCopied(uint256 predictionId, address user) external view returns (bool) {
+        return _copiers[predictionId][user];
+    }
+
+    function getCopyCount(uint256 predictionId) external view returns (uint256) {
+        return _copyCounts[predictionId];
+    }
+
     // Admin functions
     function setTreasury(address _treasury) external onlyOwner {
         treasury = _treasury;
@@ -166,6 +191,14 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
 
     function setMinLockTime(uint256 _minLockTime) external onlyOwner {
         minLockTime = _minLockTime;
+    }
+
+    function setMarket(address _market) external onlyOwner {
+        market = _market;
+    }
+
+    function setSocialMetrics(address _socialMetrics) external onlyOwner {
+        socialMetrics = _socialMetrics;
     }
 }
 
