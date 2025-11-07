@@ -4,9 +4,11 @@ import React, { useState } from "react";
 import { Search, Plus, Bell } from "lucide-react";
 import Image from "next/image";
 import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
+import CreatePredictionModal from "@/components/dashboard/CreatePredictionModal";
 
 export default function TopNav() {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <nav className="fixed top-0 w-full bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800/50 z-50">
@@ -49,7 +51,10 @@ export default function TopNav() {
             </button>
 
             {/* Create button - mobile icon only */}
-            <button className="w-9 h-9 sm:w-auto sm:px-4 sm:py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium text-xs sm:text-sm hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all rounded-sm flex items-center justify-center">
+            <button
+              onClick={() => setCreateOpen(true)}
+              className="w-9 h-9 sm:w-auto sm:px-4 sm:py-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium text-xs sm:text-sm hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all rounded-sm flex items-center justify-center"
+            >
               <Plus className="w-4 h-4 sm:mr-1.5" />
               <span className="hidden sm:inline">Create</span>
             </button>
@@ -89,6 +94,10 @@ export default function TopNav() {
           </div>
         )}
       </div>
+      <CreatePredictionModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </nav>
   );
 }

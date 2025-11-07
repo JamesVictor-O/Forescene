@@ -6,7 +6,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   MessageCircle,
-  Share2,
   Flame,
   TrendingUp,
   Clock,
@@ -484,7 +483,7 @@ function FeedCard({
   onCopy: (item: FeedItem) => void;
 }) {
   return (
-    <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-sm hover:border-zinc-700/50 transition-all duration-300">
+    <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-md hover:border-zinc-700/50 transition-all duration-300 ">
       <div className="p-3 sm:p-4 md:p-5">
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
@@ -510,8 +509,8 @@ function FeedCard({
                 )}
               </div>
               <div className="text-[10px] sm:text-xs text-zinc-500 flex items-center gap-2 sm:gap-3 mt-0.5">
-                <span className="flex items-center">
-                  <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3 mr-0.5 text-cyan-500" />
+                <span className="flex items-center gap-0.5 text-cyan-400">
+                  <Crown className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
                   {item.user.prophetScore}
                 </span>
                 <span>{item.user.accuracy}%</span>
@@ -541,9 +540,9 @@ function FeedCard({
 
         {/* Content - Video or Text */}
         {item.format === "video" ? (
-          <div className="relative aspect-9/16 w-full max-w-[240px] sm:max-w-[260px] md:max-w-[280px] lg:max-w-[300px] rounded-sm overflow-hidden">
+          <div className="  w-full flex justify-center h-80 rounded-sm overflow-hidden">
             {/* Responsive aspect ratio container */}
-            <div className="aspect-9/16 max-w-[280px] sm:max-w-[320px] md:max-w-[360px] lg:max-w-[400px] mx-auto relative">
+            <div className="aspect-9/16  w-full relative bg-black">
               {/* Background gradient */}
               <div
                 className={`absolute inset-0 ${
@@ -661,7 +660,6 @@ function FeedCard({
           >
             <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">Believe</span>
-            <span className="xs:hidden">For</span>
           </button>
 
           {/* Doubt/Against Button */}
@@ -671,17 +669,11 @@ function FeedCard({
           >
             <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">Doubt</span>
-            <span className="xs:hidden">Vs</span>
           </button>
 
           {/* Comment Button */}
           <button className="px-3 sm:px-4 py-2 sm:py-2.5 bg-zinc-950/50 border border-zinc-800/50 text-xs sm:text-sm hover:border-cyan-500/50 transition-all rounded-sm flex items-center justify-center">
             <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-          </button>
-
-          {/* Share Button */}
-          <button className="px-3 sm:px-4 py-2 sm:py-2.5 bg-zinc-950/50 border border-zinc-800/50 text-xs sm:text-sm hover:border-cyan-500/50 transition-all rounded-sm flex items-center justify-center">
-            <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
         </div>
       </div>
