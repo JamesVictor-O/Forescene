@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { Search, Plus, Bell } from "lucide-react";
 import Image from "next/image";
 import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
-import CreatePredictionModal from '@/components/dashboard/CreatePredictionModal';
+import CreatePredictionModal from "@/components/dashboard/CreatePredictionModal";
 
 export default function TopNav() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -94,7 +94,10 @@ export default function TopNav() {
           </div>
         )}
       </div>
-      <CreatePredictionModal open={createOpen} onClose={() => setCreateOpen(false)} />
+      <CreatePredictionModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </nav>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { Loader2, X } from "lucide-react";
 import { predictionRegistryAbi } from "@/abis/predictionRegistry";
@@ -60,6 +61,14 @@ export default function CreatePredictionModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [txStatus, setTxStatus] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [portalElement, setPortalElement] = useState<Element | null>(null);
+
+  useEffect(() => {
+    setMounted(true);
+    setPortalElement(document.body);
+    return () => setMounted(false);
+  }, []);
 
   const resolvedCategory = useMemo(() => {
     return category === "custom"
@@ -176,9 +185,9 @@ export default function CreatePredictionModal({
     }
   };
 
-  if (!open) return null;
+  if (!open || !mounted || !portalElement) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-zinc-950/90 backdrop-blur-sm px-3 sm:px-0">
       <div className="w-full max-w-md sm:max-w-xl bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl overflow-hidden">
         <form
@@ -342,6 +351,7 @@ export default function CreatePredictionModal({
           </button>
         </form>
       </div>
-    </div>
+    </div>,
+    portalElement
   );
 }
