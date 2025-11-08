@@ -2,9 +2,9 @@
 
 **"Predict the Future. Prove You Were Right."**
 
-Forescene is a **mobile-first social prediction platform** where users create **short-form video predictions** about real-world events — from sports and crypto to pop culture and politics — and **earn rewards for accuracy and influence**.
+Forescene is a **social prediction platform** where users create **short-form video/text predictions** about real-world events from sports and crypto to pop culture and politics — and **earn rewards for accuracy and influence**.
 
-Think **TikTok meets Polymarket**, where your predictions build your reputation, your audience, and your on-chain portfolio.
+Think Of It As **TikTok meets Polymarket**, where your predictions build your reputation, your audience, and your on-chain portfolio.
 
 ---
 
@@ -19,6 +19,7 @@ We’re building a future where:
 - Insight is rewarded.
 - Reputation is quantifiable.
 - Predictions become a form of expression, not just speculation.
+- People Put there money where there mouth is.
 
 ---
 
@@ -38,7 +39,7 @@ No one tracks accuracy. No one gets rewarded.
 
 ## 💡 The Forescene Solution
 
-**Forescene** transforms predictions into short-form, verifiable content.
+**Forescene** transforms predictions into short-form fun, engaging, verifiable content.
 
 Creators post **15–60 second prediction videos**, staking confidence points (or tokens) to prove belief.  
 When outcomes are verified, accurate predictors earn rewards and reputation — creating an economy of truth and foresight.
@@ -77,12 +78,12 @@ When outcomes are verified, accurate predictors earn rewards and reputation — 
 
 1. **Discover Predictions**
 
-   - Scroll a TikTok-style feed of short videos.
+   - Scroll a TikTok-style feed of short videos/text.
    - Filter by categories: Sports, Crypto, Entertainment, Politics, etc.
 
 2. **Back Predictions or Predictors**
 
-   - Bet on specific predictions you believe in.
+   - Bet on specific predictions you believe in or against.
    - Or back entire predictor portfolios (trust the talent).
 
 3. **Trade Positions**
@@ -288,3 +289,71 @@ cd ../contracts
 forge build
 
 ```
+
+## 🚀 Deploying to BNB Testnet
+
+### 1. Configure environment variables
+
+Create a `contracts/.env` file (do **not** commit this) with:
+
+```bash
+PRIVATE_KEY=0xYourDeployerPrivateKey
+BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545
+BSCSCAN_API_KEY=your_bscscan_api_key
+```
+
+For the frontend, create `frontend/.env.local` after deployment and supply the contract addresses:
+
+```bash
+NEXT_PUBLIC_CHAIN_ID=97
+NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS=0x...
+NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS=0x...
+NEXT_PUBLIC_RESOLUTION_ORACLE_ADDRESS=0x...
+NEXT_PUBLIC_SOCIAL_METRICS_ADDRESS=0x...
+NEXT_PUBLIC_PROPHET_PORTFOLIO_ADDRESS=0x...
+```
+
+### 2. Deploy the contracts
+
+Fund the deployer wallet with testnet BNB, then run:
+
+```bash
+cd contracts
+source .env
+
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url "$BSC_TESTNET_RPC_URL" \
+  --chain 97 \
+  --broadcast \
+  --verify \
+  -vvvv
+```
+
+The script prints the deployed addresses for the token, registry, market, oracle, portfolio, and social metrics contracts.
+
+### 3. (Optional) Contract verification
+
+Use Foundry’s verify command with the address from step 2:
+
+```bash
+forge verify-contract \
+  --chain 97 \
+  --num-of-optimizations 200 \
+  --watch \
+  <DEPLOYED_CONTRACT_ADDRESS> \
+  src/core/PredictionRegistry.sol:PredictionRegistry
+```
+
+Repeat for other contracts as needed.
+
+### 4. Configure the frontend and deploy
+
+Set the `NEXT_PUBLIC_*` values in `frontend/.env.local`, then rebuild:
+
+```bash
+cd ../frontend
+npm install
+npm run build
+```
+
+When deploying to Vercel, use `frontend` as the root directory and copy the same environment variables into the project settings.
