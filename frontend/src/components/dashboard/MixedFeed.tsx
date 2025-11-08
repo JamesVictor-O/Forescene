@@ -334,8 +334,8 @@ export default function MixedFeed() {
 
       {/* Stake Modal - Responsive */}
       {stakeForItemId && active && (
-        <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-          <div className="bg-zinc-900 border-t sm:border border-zinc-800 w-full sm:w-auto sm:min-w-[400px] sm:max-w-md sm:rounded-lg rounded-t-2xl sm:rounded-b-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-md rounded-2xl shadow-[0_20px_60px_rgba(8,8,12,0.55)] max-h-[90vh] overflow-y-auto">
             {/* Header */}
             <div className="p-4 sm:p-6 border-b border-zinc-800 sticky top-0 bg-zinc-900 z-10">
               <div className="flex items-center justify-between mb-2">

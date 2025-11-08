@@ -21,17 +21,19 @@ export default function Hero() {
 
         {/* Main headline - classic dapp style */}
         <div className="mb-6">
-          <div className="text-zinc-400 text-sm md:text-2xl font-light mb-4 tracking-wider uppercase">
-            Predict the Future
+          <div className="text-zinc-400 text-sm md:text-4xl font-light mb-4 tracking-wider uppercase">
+            Drop a Prediction.
           </div>
-          <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold mb-4 leading-none tracking-tight">
-            Prove You Were Right
+          <h1 className="text-6xl md:text-5xl lg:text-7xl font-bold mb-4 leading-none tracking-tight">
+            Watch It Blow Up, 
+            <br />
+            Profit If You Called It.
           </h1>
         </div>
 
         {/* Description */}
-        <p className="text-zinc-400 text-base md:text-lg max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-          Create short-form video or text predictions. Stake belief or doubt.
+        <p className="text-zinc-400 text-base md:text-2xl max-w-2xl mx-auto mb-12 font-light leading-relaxed">
+          The social prediction platform where you can drop short-form video or text predictions. Stake belief or doubt.
           Build your on-chain reputation.
         </p>
 
