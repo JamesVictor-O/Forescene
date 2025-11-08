@@ -113,7 +113,7 @@ contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
 
         portfolioContract.recordCopy(msg.sender, predictionId, amount);
 
-        emit CopiedPrediction(msg.sender, predictionId, amount);
+        emit IPredictionMarket.CopiedPrediction(msg.sender, predictionId, amount);
     }
 
     /**

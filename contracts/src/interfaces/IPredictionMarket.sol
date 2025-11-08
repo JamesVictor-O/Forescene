@@ -37,7 +37,7 @@ interface IPredictionMarket {
 
     function stakeAgainst(uint256 predictionId, uint256 amount) external;
 
-    function quickStake(uint256 predictionId, Side side, uint256 presetAmount) external;
+    function quickStake(uint256 predictionId, Side side, uint256 presetId) external;
 
     function copyPrediction(uint256 predictionId, uint256 amount) external;
 

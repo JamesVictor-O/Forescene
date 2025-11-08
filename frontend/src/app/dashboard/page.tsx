@@ -9,10 +9,12 @@ import PredictionsFeed from "@/components/dashboard/PredictionsFeed";
 import MixedFeed from "@/components/dashboard/MixedFeed";
 import RightSidebar from "@/components/dashboard/RightSidebar";
 import MobileBottomNav from "@/components/dashboard/MobileBottomNav";
+import CreatePredictionModal from "@/components/dashboard/CreatePredictionModal";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("feed");
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [createOpen, setCreateOpen] = useState(false);
 
   const categories = [
     "all",
@@ -76,7 +78,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-pop">
-      <TopNav />
+      <TopNav onOpenCreate={() => setCreateOpen(true)} />
 
       <div className="flex pt-14 sm:pt-16">
         {/* Sidebar - hidden on mobile */}
@@ -116,7 +118,15 @@ export default function Dashboard() {
       </div>
 
       {/* Mobile bottom nav */}
-      <MobileBottomNav />
+      <MobileBottomNav
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenCreate={() => setCreateOpen(true)}
+      />
+      <CreatePredictionModal
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+      />
     </div>
   );
 }

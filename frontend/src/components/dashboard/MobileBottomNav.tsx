@@ -1,29 +1,91 @@
-import React from 'react';
-import { Home, Compass, Bell, User, Plus } from 'lucide-react';
+import React from "react";
+import { Home, Compass, Trophy, Target, Plus } from "lucide-react";
 
-export default function MobileBottomNav() {
+type MobileBottomNavProps = {
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+  onOpenCreate: () => void;
+};
+
+const NAV_ITEMS: Array<{
+  key: string;
+  label: string;
+  icon: React.ReactNode;
+}> = [
+  { key: "feed", label: "Feed", icon: <Home className="w-5 h-5" /> },
+  { key: "discover", label: "Discover", icon: <Compass className="w-5 h-5" /> },
+  {
+    key: "predictions",
+    label: "Predictions",
+    icon: <Trophy className="w-5 h-5" />,
+  },
+  { key: "backed", label: "Backed", icon: <Target className="w-5 h-5" /> },
+];
+
+export default function MobileBottomNav({
+  activeTab,
+  setActiveTab,
+  onOpenCreate,
+}: MobileBottomNavProps) {
   return (
     <nav className="fixed bottom-0 w-full bg-zinc-950/80 backdrop-blur-sm border-t border-zinc-800/50 lg:hidden z-50 safe-area-bottom">
-      <div className="flex justify-around items-center h-16 px-2">
-        <MobileNavItem icon={<Home className="w-5 h-5" />} label="Feed" active />
-        <MobileNavItem icon={<Compass className="w-5 h-5" />} label="Discover" />
-        <button className="w-14 h-14 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center -mt-6 rounded-full hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all shadow-lg">
+      <div className="flex items-center h-16 px-4">
+        <div className="flex flex-1 items-center justify-evenly pr-4">
+          {NAV_ITEMS.slice(0, 2).map((item) => (
+            <MobileNavItem
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              active={activeTab === item.key}
+              onClick={() => setActiveTab(item.key)}
+            />
+          ))}
+        </div>
+
+        <button
+          onClick={onOpenCreate}
+          className="w-14 h-14 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 flex items-center justify-center -mt-5 rounded-full hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all shadow-lg"
+          aria-label="Create prediction"
+        >
           <Plus className="w-6 h-6" />
         </button>
-        <MobileNavItem icon={<Bell className="w-5 h-5" />} label="Alerts" />
-        <MobileNavItem icon={<User className="w-5 h-5" />} label="Profile" />
+
+        <div className="flex flex-1 items-center justify-evenly pl-4">
+          {NAV_ITEMS.slice(2).map((item) => (
+            <MobileNavItem
+              key={item.key}
+              icon={item.icon}
+              label={item.label}
+              active={activeTab === item.key}
+              onClick={() => setActiveTab(item.key)}
+            />
+          ))}
+        </div>
       </div>
     </nav>
   );
 }
 
-function MobileNavItem({ icon, label, active }: { icon: React.ReactNode; label?: string; active?: boolean }) {
+function MobileNavItem({
+  icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
   return (
-    <button className={`flex flex-col items-center justify-center space-y-1 px-3 py-2 ${active ? 'text-cyan-400' : 'text-zinc-400'}`}>
+    <button
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center space-y-1 px-2 py-2 text-[11px] font-medium transition-colors ${
+        active ? "text-cyan-400" : "text-zinc-400 hover:text-zinc-200"
+      }`}
+    >
       {icon}
-      {label && <span className="text-[10px] font-medium">{label}</span>}
+      <span>{label}</span>
     </button>
   );
 }
-
-
