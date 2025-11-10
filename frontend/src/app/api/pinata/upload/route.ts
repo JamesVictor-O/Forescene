@@ -36,21 +36,13 @@ export async function POST(request: Request) {
         name: parsed.name ?? file.name ?? "prediction-content",
         keyvalues: parsed.keyvalues ?? {},
       };
-      pinataForm.append(
-        "pinataMetadata",
-        new Blob([JSON.stringify(metadata)], {
-          type: "application/json",
-        })
-      );
+      pinataForm.append("pinataMetadata", JSON.stringify(metadata));
     } catch {
       // Ignore invalid metadata payloads.
     }
   }
 
-  pinataForm.append(
-    "pinataOptions",
-    new Blob([JSON.stringify({ cidVersion: 1 })], { type: "application/json" })
-  );
+  pinataForm.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
 
   const response = await fetch(
     "https://api.pinata.cloud/pinning/pinFileToIPFS",

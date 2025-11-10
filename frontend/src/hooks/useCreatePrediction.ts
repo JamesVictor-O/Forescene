@@ -1,15 +1,18 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePrivy } from "@privy-io/react-auth";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useMemo, useState } from "react";
 import {
   Address,
   createPublicClient,
+  createWalletClient,
+  custom,
   decodeEventLog,
   Hex,
   http,
   type WalletClient,
+  walletActions,
 } from "viem";
 import { bscTestnet } from "viem/chains";
 import { useAccount, useConnectorClient } from "wagmi";
@@ -54,7 +57,8 @@ const FORMAT_MAP: Record<PredictionFormat, 0 | 1> = {
 
 export function useCreatePrediction() {
   const { ready, authenticated } = usePrivy();
-  const { address } = useAccount();
+  const { wallets } = useWallets();
+  const { address, isConnected } = useAccount();
   const { data: connectorClient } = useConnectorClient({
     query: {
       refetchOnWindowFocus: true,
@@ -76,32 +80,58 @@ export function useCreatePrediction() {
 
   const network = getNetworkConfig();
   const registry = getContract("predictionRegistry");
+  const chainConfig = useMemo(
+    () =>
+      network.chainId === bscTestnet.id
+        ? bscTestnet
+        : { ...bscTestnet, id: network.chainId, name: network.name },
+    [network.chainId, network.name],
+  );
   const publicClient = useMemo(
     () =>
       createPublicClient({
-        chain:
-          network.chainId === bscTestnet.id
-            ? bscTestnet
-            : { ...bscTestnet, id: network.chainId, name: network.name },
+        chain: chainConfig,
         transport: http(network.rpcUrl),
       }),
-    [network.chainId, network.name, network.rpcUrl],
+    [chainConfig, network.rpcUrl],
   );
 
-  const mutation = useMutation<CreatePredictionResult, Error, CreatePredictionInput>({
+  const mutation = useMutation<
+    CreatePredictionResult,
+    Error,
+    CreatePredictionInput
+  >({
     mutationKey: ["create-prediction"],
     mutationFn: async (input) => {
-      if (!ready || !authenticated) {
-        throw new Error("Connect your wallet to create a prediction.");
-      }
-      if (!address) {
+      if (!ready || !authenticated || !isConnected || !address) {
         throw new Error("Wallet client unavailable. Reconnect your wallet.");
       }
-      const walletClient = connectorClient as WalletClient | undefined;
+      let walletClient: WalletClient | undefined = connectorClient as
+        | WalletClient
+        | undefined;
+
+      if (!walletClient && wallets.length > 0) {
+        const embeddedWallet = wallets.find(
+          (wallet) => wallet.walletClientType === "privy"
+        );
+        const externalWallet = wallets[0]; // fallback to first wallet
+
+        const activeWallet = embeddedWallet || externalWallet;
+
+        if (activeWallet) {
+          const provider = await activeWallet.getEthereumProvider();
+          walletClient = createWalletClient({
+            account: address as Address,
+            chain: chainConfig,
+            transport: custom(provider),
+          });
+        }
+      }
+
       if (!walletClient) {
         throw new Error("Wallet client unavailable. Reconnect your wallet.");
       }
-
+      const wallet = walletClient.extend(walletActions);
       setStep("validating");
 
       const formatValue = FORMAT_MAP[input.format];
@@ -115,7 +145,10 @@ export function useCreatePrediction() {
           ? input.deadline
           : Math.floor(input.deadline.getTime() / 1000);
       const nowSeconds = Math.floor(Date.now() / 1000);
-      if (!Number.isFinite(deadlineSeconds) || deadlineSeconds <= nowSeconds + 3600) {
+      if (
+        !Number.isFinite(deadlineSeconds) ||
+        deadlineSeconds <= nowSeconds + 3600
+      ) {
         throw new Error("Deadline must be at least one hour in the future.");
       }
 
@@ -162,7 +195,7 @@ export function useCreatePrediction() {
                   author: address,
                 },
               },
-            },
+            }
           );
           cid = uploadResult.cid;
         }
@@ -174,7 +207,8 @@ export function useCreatePrediction() {
 
       setStep("submitting");
 
-      const hash = await walletClient.writeContract({
+      const hash = await wallet.writeContract({
+        chain: chainConfig,
         address: registry.address,
         abi: predictionRegistryAbi,
         functionName: "createPrediction",
@@ -196,7 +230,9 @@ export function useCreatePrediction() {
             topics: log.topics,
           });
           if (decoded.eventName === "PredictionCreated") {
-            predictionId = Number((decoded.args as { predictionId: bigint }).predictionId);
+            predictionId = Number(
+              (decoded.args as { predictionId: bigint }).predictionId
+            );
             break;
           }
         } catch {
@@ -204,7 +240,9 @@ export function useCreatePrediction() {
         }
       }
 
-      await queryClient.invalidateQueries({ queryKey: ["predictions", network.chainId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["predictions", network.chainId],
+      });
 
       setStep("success");
 
@@ -237,4 +275,3 @@ export function useCreatePrediction() {
     reset,
   };
 }
-
