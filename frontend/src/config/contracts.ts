@@ -7,7 +7,7 @@ import { socialMetricsAbi } from "@/abis/socialMetrics";
 
 const DEFAULT_BSC_TESTNET_RPC_URL =
   process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
-  "https://bsc-testnet.publicnode.com";
+  "https://bsc-testnet-rpc.publicnode.com";
 
 type ContractDefinition<Abi extends readonly unknown[]> = {
   address: `0x${string}`;
