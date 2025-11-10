@@ -3,9 +3,16 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
 import { useMemo, useState } from "react";
-import { Address, decodeEventLog, Hex, createPublicClient, http } from "viem";
+import {
+  Address,
+  createPublicClient,
+  decodeEventLog,
+  Hex,
+  http,
+  type WalletClient,
+} from "viem";
 import { bscTestnet } from "viem/chains";
-import { useAccount, useWalletClient } from "wagmi";
+import { useAccount, useConnectorClient } from "wagmi";
 
 import { getContract, getNetworkConfig } from "@/config/contracts";
 import { predictionRegistryAbi } from "@/abis/predictionRegistry";
@@ -48,7 +55,12 @@ const FORMAT_MAP: Record<PredictionFormat, 0 | 1> = {
 export function useCreatePrediction() {
   const { ready, authenticated } = usePrivy();
   const { address } = useAccount();
-  const { data: walletClient } = useWalletClient();
+  const { data: connectorClient } = useConnectorClient({
+    query: {
+      refetchOnWindowFocus: true,
+      refetchOnMount: true,
+    },
+  });
   const queryClient = useQueryClient();
   const [step, setStep] = useState<CreatePredictionStep>("idle");
   const [txHash, setTxHash] = useState<Hex | null>(null);
@@ -82,7 +94,11 @@ export function useCreatePrediction() {
       if (!ready || !authenticated) {
         throw new Error("Connect your wallet to create a prediction.");
       }
-      if (!walletClient || !address) {
+      if (!address) {
+        throw new Error("Wallet client unavailable. Reconnect your wallet.");
+      }
+      const walletClient = connectorClient as WalletClient | undefined;
+      if (!walletClient) {
         throw new Error("Wallet client unavailable. Reconnect your wallet.");
       }
 
