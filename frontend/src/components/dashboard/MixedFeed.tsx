@@ -22,7 +22,10 @@ import {
   type PredictionMarketFunction,
 } from "@/abis/predictionMarket";
 import { getContract } from "@/config/contracts";
-import { useAllPredictions, type PredictionRecord } from "@/hooks/usePredictions";
+import {
+  useAllPredictions,
+  type PredictionRecord,
+} from "@/hooks/usePredictions";
 
 type FeedItem = {
   id: number;
@@ -154,10 +157,8 @@ export default function MixedFeed() {
   const { wallets } = useWallets();
   const { ready, authenticated } = usePrivy();
   const { address: predictionMarketAddress } = getContract("predictionMarket");
-  const {
-    data: chainPredictions,
-    isLoading: isPredictionsLoading,
-  } = useAllPredictions();
+  const { data: chainPredictions, isLoading: isPredictionsLoading } =
+    useAllPredictions();
 
   type PrivyWalletWithClient = {
     walletClient?: {
@@ -184,8 +185,8 @@ export default function MixedFeed() {
     if (chainPredictions && chainPredictions.length > 0) {
       setFeedItems(
         chainPredictions.map((prediction) =>
-          mapPredictionToFeedItem(prediction, shortenAddress),
-        ),
+          mapPredictionToFeedItem(prediction, shortenAddress)
+        )
       );
     } else if (!isPredictionsLoading) {
       setFeedItems(DEFAULT_FEED_ITEMS);
@@ -496,7 +497,7 @@ export default function MixedFeed() {
 
 function mapPredictionToFeedItem(
   prediction: PredictionRecord,
-  shortenAddress: (address: string) => string,
+  shortenAddress: (address: string) => string
 ): FeedItem {
   const metadata = (prediction.metadata ?? {}) as Record<string, unknown>;
   const title =

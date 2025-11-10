@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   if (!pinataJwt) {
     return NextResponse.json(
       { error: "Server missing PINATA_JWT configuration." },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) {
     return NextResponse.json(
       { error: "Invalid request: expected file upload." },
-      { status: 400 },
+      { status: 400 }
     );
   }
 
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
         "pinataMetadata",
         new Blob([JSON.stringify(metadata)], {
           type: "application/json",
-        }),
+        })
       );
     } catch {
       // Ignore invalid metadata payloads.
@@ -49,16 +49,19 @@ export async function POST(request: Request) {
 
   pinataForm.append(
     "pinataOptions",
-    new Blob([JSON.stringify({ cidVersion: 1 })], { type: "application/json" }),
+    new Blob([JSON.stringify({ cidVersion: 1 })], { type: "application/json" })
   );
 
-  const response = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${pinataJwt}`,
-    },
-    body: pinataForm,
-  });
+  const response = await fetch(
+    "https://api.pinata.cloud/pinning/pinFileToIPFS",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${pinataJwt}`,
+      },
+      body: pinataForm,
+    }
+  );
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -68,7 +71,7 @@ export async function POST(request: Request) {
         status: response.status,
         details: errorText,
       },
-      { status: response.status },
+      { status: response.status }
     );
   }
 
@@ -80,4 +83,3 @@ export async function POST(request: Request) {
     timestamp: data.Timestamp,
   });
 }
-

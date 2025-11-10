@@ -4,6 +4,7 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePrivy } from "@privy-io/react-auth";
 import { Loader2, Upload, Video, X } from "lucide-react";
+import { useAccount } from "wagmi";
 
 import {
   useCreatePrediction,
@@ -106,7 +107,7 @@ function CategorySection({
 }
 
 function calculatePercentage(
-  progress: UploadProgress | null,
+  progress: UploadProgress | null
 ): number | undefined {
   if (!progress || progress.total === 0) return undefined;
   return Number(((progress.loaded / progress.total) * 100).toFixed(2));
@@ -162,6 +163,7 @@ export default function CreatePredictionModal({
   onClose,
 }: CreatePredictionModalProps) {
   const { ready, authenticated } = usePrivy();
+  const { isConnected } = useAccount();
   const {
     createPrediction,
     isCreating,
@@ -175,7 +177,7 @@ export default function CreatePredictionModal({
 
   const [format, setFormat] = useState<FormatOption>("video");
   const [category, setCategory] = useState<string>(
-    CATEGORY_OPTIONS[0] ?? "crypto",
+    CATEGORY_OPTIONS[0] ?? "crypto"
   );
   const [customCategory, setCustomCategory] = useState("");
   const [title, setTitle] = useState("");
@@ -237,11 +239,11 @@ export default function CreatePredictionModal({
       summary: summary.trim() || undefined,
       existingCid: useExistingCid ? existingCid.trim() : undefined,
       textContent:
-        format === "text" && !useExistingCid
-          ? textContent.trim()
-          : undefined,
+        format === "text" && !useExistingCid ? textContent.trim() : undefined,
       file:
-        format === "video" && !useExistingCid ? videoFile ?? undefined : undefined,
+        format === "video" && !useExistingCid
+          ? videoFile ?? undefined
+          : undefined,
     });
 
     if (submission) {
@@ -355,6 +357,12 @@ export default function CreatePredictionModal({
             setCreatorFee={setCreatorFee}
           />
 
+          {!isConnected && (
+            <p className="text-xs text-amber-400">
+              Connect your wallet to publish a prediction.
+            </p>
+          )}
+
           {error && <p className="text-xs text-red-400">{error.message}</p>}
           {!error && transactionHash && (
             <p className="text-xs text-cyan-400 break-all">
@@ -374,6 +382,7 @@ export default function CreatePredictionModal({
               isUploading ||
               !authenticated ||
               !ready ||
+              !isConnected ||
               (format === "video" && !useExistingCid && !videoFile) ||
               (format === "text" && !useExistingCid && !textContent.trim())
             }
@@ -391,7 +400,7 @@ export default function CreatePredictionModal({
         </form>
       </div>
     </div>,
-    portalElement,
+    portalElement
   );
 }
 
@@ -497,4 +506,4 @@ function ContentSection({
       )}
     </div>
   );
-  }
+}

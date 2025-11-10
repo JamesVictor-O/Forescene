@@ -1,10 +1,11 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy } from "@privy-io/react-auth";
 import { useMemo, useState } from "react";
 import { Address, decodeEventLog, Hex, createPublicClient, http } from "viem";
 import { bscTestnet } from "viem/chains";
+import { useAccount, useWalletClient } from "wagmi";
 
 import { getContract, getNetworkConfig } from "@/config/contracts";
 import { predictionRegistryAbi } from "@/abis/predictionRegistry";
@@ -46,7 +47,8 @@ const FORMAT_MAP: Record<PredictionFormat, 0 | 1> = {
 
 export function useCreatePrediction() {
   const { ready, authenticated } = usePrivy();
-  const { wallets } = useWallets();
+  const { address } = useAccount();
+  const { data: walletClient } = useWalletClient();
   const queryClient = useQueryClient();
   const [step, setStep] = useState<CreatePredictionStep>("idle");
   const [txHash, setTxHash] = useState<Hex | null>(null);
@@ -59,10 +61,6 @@ export function useCreatePrediction() {
     uploadJson,
     reset: resetUpload,
   } = usePinataUpload();
-
-  const primaryWallet = wallets[0];
-  const walletClient = primaryWallet?.walletClient;
-  const account = primaryWallet?.address as Address | undefined;
 
   const network = getNetworkConfig();
   const registry = getContract("predictionRegistry");
@@ -84,7 +82,7 @@ export function useCreatePrediction() {
       if (!ready || !authenticated) {
         throw new Error("Connect your wallet to create a prediction.");
       }
-      if (!walletClient || !account) {
+      if (!walletClient || !address) {
         throw new Error("Wallet client unavailable. Reconnect your wallet.");
       }
 
@@ -133,7 +131,7 @@ export function useCreatePrediction() {
             title: input.title ?? "Prediction",
             summary: input.summary ?? "",
             content: input.textContent ?? "",
-            author: account,
+            author: address,
             category,
             createdAt: new Date().toISOString(),
           };
@@ -145,7 +143,7 @@ export function useCreatePrediction() {
                 name: input.title ?? "prediction-text",
                 keyvalues: {
                   category,
-                  author: account,
+                  author: address,
                 },
               },
             },
@@ -164,7 +162,7 @@ export function useCreatePrediction() {
         address: registry.address,
         abi: predictionRegistryAbi,
         functionName: "createPrediction",
-        account,
+        account: address as Address,
         args: [cid, formatValue, category, BigInt(deadlineSeconds), fee],
       });
 
