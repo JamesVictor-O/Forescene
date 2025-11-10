@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Play,
   ThumbsUp,
@@ -22,6 +22,7 @@ import {
   type PredictionMarketFunction,
 } from "@/abis/predictionMarket";
 import { getContract } from "@/config/contracts";
+import { useAllPredictions, type PredictionRecord } from "@/hooks/usePredictions";
 
 type FeedItem = {
   id: number;
@@ -34,6 +35,7 @@ type FeedItem = {
     verified: boolean;
   };
   prediction: string;
+  summary?: string;
   category: string;
   thumbnail: "crypto-bg" | "sports-bg" | "tech-bg";
   confidence: number;
@@ -44,6 +46,7 @@ type FeedItem = {
   isHot: boolean;
   copyCount: number;
   recommendedStake: number;
+  contentUrl?: string;
 };
 
 const DEFAULT_FEED_ITEMS: FeedItem[] = [
@@ -151,6 +154,10 @@ export default function MixedFeed() {
   const { wallets } = useWallets();
   const { ready, authenticated } = usePrivy();
   const { address: predictionMarketAddress } = getContract("predictionMarket");
+  const {
+    data: chainPredictions,
+    isLoading: isPredictionsLoading,
+  } = useAllPredictions();
 
   type PrivyWalletWithClient = {
     walletClient?: {
@@ -172,6 +179,18 @@ export default function MixedFeed() {
   const quickAmounts = useMemo(() => [10, 25, 50, 100], []);
   const shortenAddress = (addr: string) =>
     `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+
+  useEffect(() => {
+    if (chainPredictions && chainPredictions.length > 0) {
+      setFeedItems(
+        chainPredictions.map((prediction) =>
+          mapPredictionToFeedItem(prediction, shortenAddress),
+        ),
+      );
+    } else if (!isPredictionsLoading) {
+      setFeedItems(DEFAULT_FEED_ITEMS);
+    }
+  }, [chainPredictions, isPredictionsLoading]);
 
   const createReshareItem = (source: FeedItem): FeedItem => {
     const timestampId = Date.now();
@@ -473,6 +492,75 @@ export default function MixedFeed() {
       )}
     </div>
   );
+}
+
+function mapPredictionToFeedItem(
+  prediction: PredictionRecord,
+  shortenAddress: (address: string) => string,
+): FeedItem {
+  const metadata = (prediction.metadata ?? {}) as Record<string, unknown>;
+  const title =
+    typeof metadata.title === "string"
+      ? metadata.title
+      : typeof metadata.content === "string"
+      ? metadata.content
+      : `Prediction #${prediction.id}`;
+  const summary =
+    typeof metadata.summary === "string"
+      ? metadata.summary
+      : typeof metadata.description === "string"
+      ? metadata.description
+      : undefined;
+  const oddsData = metadata.odds as
+    | { for?: number; against?: number }
+    | undefined;
+  const odds = {
+    for: Number(oddsData?.for ?? 0),
+    against: Number(oddsData?.against ?? 0),
+  };
+
+  const deadlineDate = new Date(prediction.deadline * 1000);
+  const formattedDeadline = isNaN(deadlineDate.getTime())
+    ? "TBD"
+    : deadlineDate.toISOString().split("T")[0];
+
+  return {
+    id: prediction.id,
+    format: prediction.format,
+    user: {
+      name: shortenAddress(prediction.creator),
+      avatar: prediction.creator.slice(2, 4).toUpperCase(),
+      prophetScore: 0,
+      accuracy: 0,
+      verified: false,
+    },
+    prediction: title,
+    summary,
+    category: prediction.category,
+    thumbnail: determineThumbnail(prediction.category),
+    confidence: 65,
+    currentOdds: odds,
+    stats: {
+      backers: prediction.copyCount,
+      staked: "0",
+      comments: 0,
+      shares: 0,
+    },
+    deadline: formattedDeadline,
+    timeLeft: prediction.timeRemaining ?? "—",
+    isHot: prediction.copyCount > 50,
+    copyCount: prediction.copyCount,
+    recommendedStake: 50,
+    contentUrl: prediction.contentUrl,
+  };
+}
+
+function determineThumbnail(category: string): FeedItem["thumbnail"] {
+  const normalized = category.toLowerCase();
+  if (normalized.includes("sport")) return "sports-bg";
+  if (normalized.includes("tech") || normalized.includes("ai"))
+    return "tech-bg";
+  return "crypto-bg";
 }
 
 function FeedCard({

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import TopNav from "@/components/dashboard/TopNav";
 import SidebarLeft from "@/components/dashboard/SidebarLeft";
 import StatsOverview from "@/components/dashboard/StatsOverview";
@@ -10,6 +10,7 @@ import MixedFeed from "@/components/dashboard/MixedFeed";
 import RightSidebar from "@/components/dashboard/RightSidebar";
 import MobileBottomNav from "@/components/dashboard/MobileBottomNav";
 import CreatePredictionModal from "@/components/dashboard/CreatePredictionModal";
+import { useUserPredictions } from "@/hooks/usePredictions";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("feed");
@@ -25,47 +26,17 @@ export default function Dashboard() {
     "tech",
   ];
 
-  const predictions = [
-    {
-      id: 1,
-      user: "CryptoSage",
-      avatar: "CS",
-      prediction: "BTC will hit $100K before Dec 31, 2025",
-      category: "crypto",
-      confidence: 85,
-      backers: 234,
-      stake: "500 FORE",
-      deadline: "2025-12-31",
-      status: "active",
-      odds: "2.3x",
-    },
-    {
-      id: 2,
-      user: "SportsOracle",
-      avatar: "SO",
-      prediction: "Lakers will win NBA Championship 2025",
-      category: "sports",
-      confidence: 72,
-      backers: 189,
-      stake: "350 FORE",
-      deadline: "2025-06-15",
-      status: "active",
-      odds: "3.1x",
-    },
-    {
-      id: 3,
-      user: "TechVision",
-      avatar: "TV",
-      prediction: "Apple will launch AR glasses in 2025",
-      category: "tech",
-      confidence: 65,
-      backers: 156,
-      stake: "280 FORE",
-      deadline: "2025-12-31",
-      status: "active",
-      odds: "1.8x",
-    },
-  ];
+  const { data: userPredictions, isLoading: isUserPredictionsLoading } =
+    useUserPredictions();
+
+  const filteredPredictions = useMemo(() => {
+    if (!userPredictions) return [];
+    if (selectedCategory === "all") return userPredictions;
+    return userPredictions.filter(
+      (prediction) =>
+        prediction.category.toLowerCase() === selectedCategory.toLowerCase(),
+    );
+  }, [selectedCategory, userPredictions]);
 
   const userStats = {
     prophetScore: 847,
@@ -102,13 +73,13 @@ export default function Dashboard() {
                 selectedCategory={selectedCategory}
                 setSelectedCategory={setSelectedCategory}
               />
-              <PredictionsFeed
-                predictions={predictions.filter(
-                  (p) =>
-                    selectedCategory === "all" ||
-                    p.category === selectedCategory
-                )}
-              />
+              {isUserPredictionsLoading ? (
+                <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-6 text-center text-sm text-zinc-500">
+                  Loading predictions…
+                </div>
+              ) : (
+                <PredictionsFeed predictions={filteredPredictions} />
+              )}
             </div>
           )}
         </main>

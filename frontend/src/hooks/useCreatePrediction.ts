@@ -1,0 +1,226 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { useMemo, useState } from "react";
+import { Address, decodeEventLog, Hex, createPublicClient, http } from "viem";
+import { bscTestnet } from "viem/chains";
+
+import { getContract, getNetworkConfig } from "@/config/contracts";
+import { predictionRegistryAbi } from "@/abis/predictionRegistry";
+import { usePinataUpload } from "./usePinataUpload";
+
+type PredictionFormat = "video" | "text";
+
+export type CreatePredictionInput = {
+  format: PredictionFormat;
+  category: string;
+  deadline: number | Date;
+  creatorFeeBps?: number;
+  title?: string;
+  summary?: string;
+  existingCid?: string;
+  file?: File;
+  textContent?: string;
+};
+
+export type CreatePredictionStep =
+  | "idle"
+  | "validating"
+  | "uploading"
+  | "submitting"
+  | "waiting"
+  | "success"
+  | "error";
+
+export type CreatePredictionResult = {
+  hash: Hex;
+  predictionId?: number;
+  cid: string;
+};
+
+const FORMAT_MAP: Record<PredictionFormat, 0 | 1> = {
+  video: 0,
+  text: 1,
+};
+
+export function useCreatePrediction() {
+  const { ready, authenticated } = usePrivy();
+  const { wallets } = useWallets();
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<CreatePredictionStep>("idle");
+  const [txHash, setTxHash] = useState<Hex | null>(null);
+
+  const {
+    isUploading,
+    progress: uploadProgress,
+    error: uploadError,
+    uploadFile,
+    uploadJson,
+    reset: resetUpload,
+  } = usePinataUpload();
+
+  const primaryWallet = wallets[0];
+  const walletClient = primaryWallet?.walletClient;
+  const account = primaryWallet?.address as Address | undefined;
+
+  const network = getNetworkConfig();
+  const registry = getContract("predictionRegistry");
+  const publicClient = useMemo(
+    () =>
+      createPublicClient({
+        chain:
+          network.chainId === bscTestnet.id
+            ? bscTestnet
+            : { ...bscTestnet, id: network.chainId, name: network.name },
+        transport: http(network.rpcUrl),
+      }),
+    [network.chainId, network.name, network.rpcUrl],
+  );
+
+  const mutation = useMutation<CreatePredictionResult, Error, CreatePredictionInput>({
+    mutationKey: ["create-prediction"],
+    mutationFn: async (input) => {
+      if (!ready || !authenticated) {
+        throw new Error("Connect your wallet to create a prediction.");
+      }
+      if (!walletClient || !account) {
+        throw new Error("Wallet client unavailable. Reconnect your wallet.");
+      }
+
+      setStep("validating");
+
+      const formatValue = FORMAT_MAP[input.format];
+      const category = input.category.trim().toLowerCase();
+      if (!category) {
+        throw new Error("Category is required.");
+      }
+
+      const deadlineSeconds =
+        typeof input.deadline === "number"
+          ? input.deadline
+          : Math.floor(input.deadline.getTime() / 1000);
+      const nowSeconds = Math.floor(Date.now() / 1000);
+      if (!Number.isFinite(deadlineSeconds) || deadlineSeconds <= nowSeconds + 3600) {
+        throw new Error("Deadline must be at least one hour in the future.");
+      }
+
+      const fee = input.creatorFeeBps ?? 0;
+      if (fee < 0 || fee > 10_000) {
+        throw new Error("Creator fee must be between 0 and 10,000 bps.");
+      }
+
+      let cid = input.existingCid?.trim();
+      if (!cid) {
+        setStep("uploading");
+
+        if (input.format === "video") {
+          if (!input.file) {
+            throw new Error("Select a video file to upload.");
+          }
+          const uploadResult = await uploadFile(input.file, {
+            metadata: {
+              name: input.title ?? input.file.name,
+              keyvalues: {
+                category,
+                title: input.title ?? "",
+              },
+            },
+          });
+          cid = uploadResult.cid;
+        } else {
+          const textPayload = {
+            title: input.title ?? "Prediction",
+            summary: input.summary ?? "",
+            content: input.textContent ?? "",
+            author: account,
+            category,
+            createdAt: new Date().toISOString(),
+          };
+          const uploadResult = await uploadJson(
+            textPayload,
+            `${category}-prediction-${Date.now()}.json`,
+            {
+              metadata: {
+                name: input.title ?? "prediction-text",
+                keyvalues: {
+                  category,
+                  author: account,
+                },
+              },
+            },
+          );
+          cid = uploadResult.cid;
+        }
+      }
+
+      if (!cid) {
+        throw new Error("Unable to determine content CID.");
+      }
+
+      setStep("submitting");
+
+      const hash = await walletClient.writeContract({
+        address: registry.address,
+        abi: predictionRegistryAbi,
+        functionName: "createPrediction",
+        account,
+        args: [cid, formatValue, category, BigInt(deadlineSeconds), fee],
+      });
+
+      setTxHash(hash);
+      setStep("waiting");
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      let predictionId: number | undefined;
+      for (const log of receipt.logs) {
+        try {
+          const decoded = decodeEventLog({
+            abi: predictionRegistryAbi,
+            data: log.data,
+            topics: log.topics,
+          });
+          if (decoded.eventName === "PredictionCreated") {
+            predictionId = Number((decoded.args as { predictionId: bigint }).predictionId);
+            break;
+          }
+        } catch {
+          // Ignore non-matching logs.
+        }
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["predictions", network.chainId] });
+
+      setStep("success");
+
+      return { hash, predictionId, cid };
+    },
+    onError: () => {
+      setStep("error");
+    },
+  });
+
+  const reset = () => {
+    setStep("idle");
+    setTxHash(null);
+    resetUpload();
+    mutation.reset();
+  };
+
+  return {
+    createPrediction: mutation.mutateAsync,
+    isCreating:
+      mutation.status === "pending" &&
+      (step === "submitting" || step === "waiting" || step === "validating"),
+    isSuccess: mutation.isSuccess,
+    error: mutation.error ?? (uploadError ? new Error(uploadError) : null),
+    uploadProgress,
+    isUploading,
+    currentStep: step,
+    transactionHash: txHash,
+    data: mutation.data,
+    reset,
+  };
+}
+
