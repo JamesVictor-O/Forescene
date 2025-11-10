@@ -17,8 +17,11 @@ import {
 } from "lucide-react";
 import { useWallets, usePrivy } from "@privy-io/react-auth";
 import { parseUnits } from "viem";
-import { predictionMarketAbi } from "@/abis/predictionMarket";
-import type { PredictionMarketFunction } from "@/abis/predictionMarket";
+import {
+  predictionMarketAbi,
+  type PredictionMarketFunction,
+} from "@/abis/predictionMarket";
+import { getContract } from "@/config/contracts";
 
 type FeedItem = {
   id: number;
@@ -147,8 +150,7 @@ export default function MixedFeed() {
 
   const { wallets } = useWallets();
   const { ready, authenticated } = usePrivy();
-  const predictionMarketAddress = process.env
-    .NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS as `0x${string}` | undefined;
+  const { address: predictionMarketAddress } = getContract("predictionMarket");
 
   type PrivyWalletWithClient = {
     walletClient?: {

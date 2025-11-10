@@ -1,15 +1,8 @@
 "use client";
 
 import React from "react";
-import {
-  Home,
-  Compass,
-  Trophy,
-  Target,
-  Users,
-  BarChart3,
-  Award,
-} from "lucide-react";
+import { Home, Compass, Trophy, Target, Users, BarChart3 } from "lucide-react";
+import { useForeBalance } from "@/hooks/useForeBalance";
 
 type SidebarLeftProps = {
   activeTab: string;
@@ -27,6 +20,24 @@ export default function SidebarLeft({
   setActiveTab,
   userStats,
 }: SidebarLeftProps) {
+  const { balance, isLoading, error } = useForeBalance();
+
+  const renderBalance = () => {
+    if (isLoading) return "…";
+    if (error) return "--";
+    if (balance) {
+      const numeric = Number(balance.formatted);
+      const formatted = Number.isFinite(numeric)
+        ? numeric.toLocaleString(undefined, {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: numeric < 1 ? 4 : 2,
+          })
+        : balance.formatted;
+      return formatted;
+    }
+    return userStats.earnings;
+  };
+
   return (
     <aside className="fixed left-0 w-64 h-screen bg-zinc-950 border-r border-zinc-800 hidden lg:block">
       <div className="p-6 space-y-6">
@@ -96,8 +107,10 @@ export default function SidebarLeft({
         <div className="p-4 bg-zinc-900 border border-zinc-800 rounded-md">
           <div className="text-xs text-zinc-500 mb-1">Balance</div>
           <div className="text-2xl font-bold mb-3">
-            {userStats.earnings}{" "}
-            <span className="text-sm text-zinc-500">FORE</span>
+            {renderBalance()}{" "}
+            <span className="text-sm text-zinc-500">
+              {balance?.symbol ?? "FORE"}
+            </span>
           </div>
           <div className="flex gap-2">
             <button className="flex-1 px-3 py-2 bg-cyan-500 text-zinc-950 text-xs font-semibold">
