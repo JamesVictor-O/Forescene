@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAccount } from "wagmi";
-import { Address, createPublicClient, formatUnits, http } from "viem";
-import { bscTestnet } from "viem/chains";
+import { useAccount, usePublicClient } from "wagmi";
+import { Address, formatUnits } from "viem";
 
 import { getContract, getNetworkConfig } from "@/config/contracts";
 import { predictionRegistryAbi } from "@/abis/predictionRegistry";
@@ -54,18 +53,14 @@ export function useAllPredictions() {
   const network = getNetworkConfig();
   const registry = getContract("predictionRegistry");
   const market = getContract("predictionMarket");
-
-  const publicClient = createPublicClient({
-    chain:
-      network.chainId === bscTestnet.id
-        ? bscTestnet
-        : { ...bscTestnet, id: network.chainId, name: network.name },
-    transport: http(network.rpcUrl),
-  });
+  const publicClient = usePublicClient({ chainId: network.chainId });
 
   return useQuery<PredictionRecord[], Error>({
     queryKey: ["predictions", network.chainId],
     queryFn: async () => {
+      if (!publicClient) {
+        throw new Error("Public client unavailable");
+      }
       const nextIdBig = (await publicClient.readContract({
         address: registry.address,
         abi: predictionRegistryAbi,
@@ -185,6 +180,7 @@ export function useAllPredictions() {
     },
     staleTime: 30_000,
     refetchInterval: 60_000,
+    enabled: Boolean(publicClient),
   });
 }
 

@@ -5,10 +5,6 @@ import { prophetPortfolioAbi } from "@/abis/prophetPortfolio";
 import { resolutionOracleAbi } from "@/abis/resolutionOracle";
 import { socialMetricsAbi } from "@/abis/socialMetrics";
 
-const DEFAULT_BSC_TESTNET_RPC_URL =
-  process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
-  "https://bsc-testnet-rpc.publicnode.com";
-
 type ContractDefinition<Abi extends readonly unknown[]> = {
   address: `0x${string}`;
   abi: Abi;
@@ -22,6 +18,10 @@ type ContractEntries = {
   prophetPortfolio: ContractDefinition<typeof prophetPortfolioAbi>;
   socialMetrics: ContractDefinition<typeof socialMetricsAbi>;
 };
+
+const DEFAULT_BSC_TESTNET_RPC_URL =
+  process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
+  "https://bsc-testnet-rpc.publicnode.com";
 
 type NetworkConfig = {
   chainId: number;
