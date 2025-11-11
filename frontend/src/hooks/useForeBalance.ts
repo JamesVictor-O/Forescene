@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWallets } from "@privy-io/react-auth";
-import { Address, createPublicClient, formatUnits, http } from "viem";
-import { bscTestnet } from "viem/chains";
+import { useMemo } from "react";
+import { useAccount, useReadContract } from "wagmi";
+import { formatUnits } from "viem";
 
-import { getContract, getNetworkConfig } from "@/config/contracts";
+import { getContract } from "@/config/contracts";
 
 type ForeBalance = {
   raw: bigint;
@@ -18,92 +17,76 @@ type UseForeBalanceResult = {
   balance?: ForeBalance;
   isLoading: boolean;
   error?: string;
-  refetch: () => Promise<void>;
+  refetch: () => Promise<unknown>;
 };
 
-export function useForeBalance(): UseForeBalanceResult {
-  const { wallets } = useWallets();
-  const account = wallets[0]?.address as Address | undefined;
+const DEFAULT_DECIMALS = 18;
+const DEFAULT_SYMBOL = "FORE";
 
-  const network = getNetworkConfig();
+export function useForeBalance(): UseForeBalanceResult {
+  const { address } = useAccount();
   const foreToken = getContract("foreToken");
 
-  const client = useMemo(
-    () =>
-      createPublicClient({
-        chain:
-          network.chainId === bscTestnet.id
-            ? bscTestnet
-            : {
-                ...bscTestnet,
-                id: network.chainId,
-              },
-        transport: http(network.rpcUrl),
-      }),
-    [network.chainId, network.rpcUrl]
-  );
+  const decimalsQuery = useReadContract({
+    address: foreToken.address as `0x${string}`,
+    abi: foreToken.abi,
+    functionName: "decimals",
+    query: {
+      staleTime: Infinity,
+      cacheTime: Infinity,
+    },
+  });
 
-  const [balance, setBalance] = useState<ForeBalance | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  const symbolQuery = useReadContract({
+    address: foreToken.address as `0x${string}`,
+    abi: foreToken.abi,
+    functionName: "symbol",
+    query: {
+      staleTime: Infinity,
+      cacheTime: Infinity,
+    },
+  });
 
-  const fetchBalance = useCallback(async () => {
-    if (!account) {
-      setBalance(undefined);
-      setError(undefined);
-      return;
-    }
+  const balanceQuery = useReadContract({
+    address: foreToken.address as `0x${string}`,
+    abi: foreToken.abi,
+    functionName: "balanceOf",
+    args: address ? [address] : undefined,
+    query: {
+      enabled: Boolean(address),
+      refetchOnWindowFocus: false,
+    },
+  });
 
-    setIsLoading(true);
-    setError(undefined);
+  const decimals =
+    typeof decimalsQuery.data === "bigint"
+      ? Number(decimalsQuery.data)
+      : decimalsQuery.data ?? DEFAULT_DECIMALS;
+  const symbol = symbolQuery.data ?? DEFAULT_SYMBOL;
 
-    try {
-      const [raw, decimals, symbol] = await Promise.all([
-        client.readContract({
-          address: foreToken.address as Address,
-          abi: foreToken.abi,
-          functionName: "balanceOf",
-          args: [account],
-        }) as Promise<bigint>,
-        client.readContract({
-          address: foreToken.address as Address,
-          abi: foreToken.abi,
-          functionName: "decimals",
-        }) as Promise<number | bigint>,
-        client.readContract({
-          address: foreToken.address as Address,
-          abi: foreToken.abi,
-          functionName: "symbol",
-        }) as Promise<string>,
-      ]);
+  const balance = useMemo<ForeBalance | undefined>(() => {
+    if (!balanceQuery.data) return undefined;
+    const raw = balanceQuery.data as bigint;
+    return {
+      raw,
+      decimals,
+      symbol,
+      formatted: formatUnits(raw, decimals),
+    };
+  }, [balanceQuery.data, decimals, symbol]);
 
-      const decimalValue =
-        typeof decimals === "bigint" ? Number(decimals) : decimals;
-
-      setBalance({
-        raw,
-        decimals: decimalValue,
-        formatted: formatUnits(raw, decimalValue),
-        symbol,
-      });
-    } catch (err) {
-      setBalance(undefined);
-      setError(
-        err instanceof Error ? err.message : "Failed to fetch FORE balance"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, [account, client, foreToken.address, foreToken.abi]);
-
-  useEffect(() => {
-    fetchBalance();
-  }, [fetchBalance]);
+  const error =
+    balanceQuery.error?.message ??
+    decimalsQuery.error?.message ??
+    symbolQuery.error?.message;
 
   return {
     balance,
-    isLoading,
+    isLoading:
+      balanceQuery.isPending ||
+      decimalsQuery.isPending ||
+      symbolQuery.isPending,
     error,
-    refetch: fetchBalance,
+    refetch: balanceQuery.refetch,
   };
 }

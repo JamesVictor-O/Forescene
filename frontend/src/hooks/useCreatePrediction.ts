@@ -5,19 +5,17 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useMemo, useState } from "react";
 import {
   Address,
-  createPublicClient,
   createWalletClient,
   custom,
   decodeEventLog,
   Hex,
-  http,
   type WalletClient,
   walletActions,
 } from "viem";
 import { bscTestnet } from "viem/chains";
-import { useAccount, useConnectorClient } from "wagmi";
+import { useAccount, useConnectorClient, usePublicClient } from "wagmi";
 
-import { getContract, getNetworkConfig } from "@/config/contracts";
+import { getContract } from "@/config/contracts";
 import { predictionRegistryAbi } from "@/abis/predictionRegistry";
 import { usePinataUpload } from "./usePinataUpload";
 
@@ -78,22 +76,11 @@ export function useCreatePrediction() {
     reset: resetUpload,
   } = usePinataUpload();
 
-  const network = getNetworkConfig();
   const registry = getContract("predictionRegistry");
-  const chainConfig = useMemo(
-    () =>
-      network.chainId === bscTestnet.id
-        ? bscTestnet
-        : { ...bscTestnet, id: network.chainId, name: network.name },
-    [network.chainId, network.name],
-  );
-  const publicClient = useMemo(
-    () =>
-      createPublicClient({
-        chain: chainConfig,
-        transport: http(network.rpcUrl),
-      }),
-    [chainConfig, network.rpcUrl],
+  const publicClient = usePublicClient();
+  const chain = useMemo(
+    () => publicClient?.chain ?? bscTestnet,
+    [publicClient?.chain]
   );
 
   const mutation = useMutation<
@@ -105,6 +92,9 @@ export function useCreatePrediction() {
     mutationFn: async (input) => {
       if (!ready || !authenticated || !isConnected || !address) {
         throw new Error("Wallet client unavailable. Reconnect your wallet.");
+      }
+      if (!publicClient) {
+        throw new Error("Public client unavailable. Reconnect your wallet.");
       }
       let walletClient: WalletClient | undefined = connectorClient as
         | WalletClient
@@ -122,7 +112,7 @@ export function useCreatePrediction() {
           const provider = await activeWallet.getEthereumProvider();
           walletClient = createWalletClient({
             account: address as Address,
-            chain: chainConfig,
+            chain,
             transport: custom(provider),
           });
         }
@@ -208,7 +198,7 @@ export function useCreatePrediction() {
       setStep("submitting");
 
       const hash = await wallet.writeContract({
-        chain: chainConfig,
+        chain,
         address: registry.address,
         abi: predictionRegistryAbi,
         functionName: "createPrediction",
@@ -241,7 +231,7 @@ export function useCreatePrediction() {
       }
 
       await queryClient.invalidateQueries({
-        queryKey: ["predictions", network.chainId],
+        queryKey: ["predictions", chain.id],
       });
 
       setStep("success");
