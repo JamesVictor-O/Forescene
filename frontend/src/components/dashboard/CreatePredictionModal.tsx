@@ -188,6 +188,7 @@ export default function CreatePredictionModal({
   const [existingCid, setExistingCid] = useState("");
   const [deadline, setDeadline] = useState("");
   const [creatorFee, setCreatorFee] = useState("250");
+  const { address } = useAccount();
 
   const resolvedCategory = useMemo(() => {
     const normalized =
@@ -196,6 +197,9 @@ export default function CreatePredictionModal({
         : category.toLowerCase();
     return normalized || "general";
   }, [category, customCategory]);
+  
+
+ 
 
   const resetState = () => {
     reset();
@@ -223,6 +227,7 @@ export default function CreatePredictionModal({
 
     if (!ready || !authenticated) return;
     if (!deadline) return;
+
 
     const deadlineSeconds = new Date(deadline).getTime();
     if (!Number.isFinite(deadlineSeconds)) return;
@@ -357,11 +362,6 @@ export default function CreatePredictionModal({
             setCreatorFee={setCreatorFee}
           />
 
-          {!isConnected && (
-            <p className="text-xs text-amber-400">
-              Connect your wallet to publish a prediction.
-            </p>
-          )}
 
           {error && <p className="text-xs text-red-400">{error.message}</p>}
           {!error && transactionHash && (

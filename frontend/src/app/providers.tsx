@@ -1,18 +1,24 @@
+// 
+
 "use client";
 
-import "@rainbow-me/rainbowkit/styles.css";
-
-import { RainbowKitProvider, getDefaultConfig } from "@rainbow-me/rainbowkit";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { PrivyProvider } from "@privy-io/react-auth";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
 import { WagmiProvider } from "wagmi";
-import { defineChain } from "viem";
+import { createConfig } from "wagmi";
+import { foresceneBscTestnet } from "@/config/chains";
+import { http } from "viem";
 
-import { getNetworkConfig } from "@/config/contracts";
-
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000,
+      retry: 1,
+    },
+  },
+});
 
 interface ProvidersProps {
   children: ReactNode;
@@ -20,74 +26,53 @@ interface ProvidersProps {
 
 export default function Providers({ children }: ProvidersProps) {
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-  const privyClientId = process.env.NEXT_PUBLIC_PRIVY_CLIENT_ID;
-  const walletConnectProjectId =
-    process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "demo-project-id";
+  const rpcUrl = foresceneBscTestnet.rpcUrls.default.http[0];
 
-  const network = getNetworkConfig();
-
-  const chain = useMemo(
-    () =>
-      defineChain({
-        id: network.chainId,
-        name: network.name,
-        nativeCurrency: {
-          decimals: 18,
-          name: "BNB",
-          symbol: "tBNB",
-        },
-        rpcUrls: {
-          default: {
-            http: [network.rpcUrl],
-          },
-        },
-        blockExplorers: {
-          default: {
-            name: "BscScan Testnet",
-            url: "https://testnet.bscscan.com",
-          },
-        },
-        testnet: true,
-      }),
-    [network.chainId, network.name, network.rpcUrl]
-  );
+  console.log("🔧 CONFIG CHECK:");
+  console.log("- RPC URL:", rpcUrl);
+  console.log("- Chain ID:", foresceneBscTestnet.id);
 
   const wagmiConfig = useMemo(
     () =>
-      getDefaultConfig({
-        appName: "Forescene",
-        projectId: walletConnectProjectId,
-        chains: [chain],
-        ssr: true,
+      createConfig({
+        chains: [foresceneBscTestnet],
+        transports: {
+          [foresceneBscTestnet.id]: http(rpcUrl, {
+            timeout: 30_000,
+            retryCount: 3,
+          }),
+        },
       }),
-    [chain, walletConnectProjectId]
+    [rpcUrl]
   );
 
-  if (!privyAppId || !privyClientId) {
-    console.error("Privy env vars are missing");
-    return children;
+  if (!privyAppId) {
+    console.error("Privy app ID is missing");
+    return <>{children}</>;
   }
-  console.log(privyAppId, privyClientId, walletConnectProjectId);
 
   return (
     <PrivyProvider
       appId={privyAppId}
-      clientId={privyClientId}
       config={{
-        embeddedWallets: {
-          ethereum: {
-            createOnLogin: "users-without-wallets",
-          },
+        appearance: {
+          theme: "dark",
+          accentColor: "#676FFF",
         },
+        embeddedWallets: {
+          createOnLogin: "users-without-wallets",
+        },
+        rpcConfig: {
+          [foresceneBscTestnet.id]: rpcUrl,
+        },
+        supportedChains: [foresceneBscTestnet],
+        loginMethods: ["wallet", "email", "sms"],
+        defaultChain: foresceneBscTestnet,
       }}
     >
-      <WagmiProvider config={wagmiConfig}>
-        <QueryClientProvider client={queryClient}>
-          <RainbowKitProvider initialChain={chain} locale="en-US">
-            {children}
-          </RainbowKitProvider>
-        </QueryClientProvider>
-      </WagmiProvider>
+      <QueryClientProvider client={queryClient}>
+        <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
+      </QueryClientProvider>
     </PrivyProvider>
   );
 }

@@ -11,11 +11,14 @@ import RightSidebar from "@/components/dashboard/RightSidebar";
 import MobileBottomNav from "@/components/dashboard/MobileBottomNav";
 import CreatePredictionModal from "@/components/dashboard/CreatePredictionModal";
 import { useUserPredictions } from "@/hooks/usePredictions";
+import { useForeBalance } from "@/hooks/useForeBalance";
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("feed");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [createOpen, setCreateOpen] = useState(false);
+  const { balance } = useForeBalance();
+
 
   const categories = [
     "all",
@@ -47,9 +50,10 @@ export default function Dashboard() {
     rank: 156,
   };
 
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-pop">
-      <TopNav onOpenCreate={() => setCreateOpen(true)} />
+      <TopNav onOpenCreate={() => setCreateOpen(true)} balance={balance!} />
 
       <div className="flex pt-14 sm:pt-16">
         {/* Sidebar - hidden on mobile */}
@@ -57,6 +61,7 @@ export default function Dashboard() {
           activeTab={activeTab}
           setActiveTab={setActiveTab}
           userStats={userStats}
+          balance={balance!}
         />
 
         {/* Main content - mobile first */}

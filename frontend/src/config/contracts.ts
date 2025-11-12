@@ -19,21 +19,15 @@ type ContractEntries = {
   socialMetrics: ContractDefinition<typeof socialMetricsAbi>;
 };
 
-const DEFAULT_BSC_TESTNET_RPC_URL =
-  process.env.NEXT_PUBLIC_BSC_TESTNET_RPC_URL ??
-  "https://bsc-testnet-rpc.publicnode.com";
-
 type NetworkConfig = {
   chainId: number;
   name: string;
-  rpcUrl: string;
 } & ContractEntries;
 
 export const CONTRACTS = {
   bscTestnet: {
     chainId: 97,
     name: "BNB Smart Chain Testnet",
-    rpcUrl: DEFAULT_BSC_TESTNET_RPC_URL,
     foreToken: {
       address: "0xe44Ea520518CCD7709CD13BCd37161518fA2e580",
       abi: foreAbi,

@@ -21,6 +21,13 @@ export type PredictionRecord = {
   contentCid: string;
   contentUrl: string;
   format: "video" | "text";
+  mediaType?: "video" | "image" | "text";
+  mediaCid?: string;
+  mediaUrl?: string;
+  mediaMimeType?: string;
+  textContent?: string;
+  title?: string;
+  summary?: string;
   category: string;
   deadline: number;
   lockTime: number;
@@ -54,6 +61,14 @@ export function useAllPredictions() {
   const registry = getContract("predictionRegistry");
   const market = getContract("predictionMarket");
   const publicClient = usePublicClient({ chainId: network.chainId });
+  const gatewayCandidates = [
+    DEFAULT_GATEWAY,
+    process.env.NEXT_PUBLIC_PINATA_GATEWAY,
+    "https://ipfs.io/ipfs",
+    "https://cloudflare-ipfs.com/ipfs",
+  ]
+    .filter(Boolean)
+    .map((url) => url!.replace(/\/$/, ""));
 
   return useQuery<PredictionRecord[], Error>({
     queryKey: ["predictions", network.chainId],
@@ -105,26 +120,109 @@ export function useAllPredictions() {
             args: [id],
           })) as bigint;
 
-          const contentUrl = `${gateway}/${prediction.contentCID}`;
-
+          let resolvedContentUrl = `${gateway}/${prediction.contentCID}`;
           let metadata: Record<string, unknown> | undefined;
-          if (FORMAT_LABEL[prediction.format] === "text") {
+          for (const base of gatewayCandidates) {
+            const candidateUrl = `${base}/${prediction.contentCID}`;
             try {
-              const response = await fetch(contentUrl);
-              if (response.ok) {
-                metadata = await response.json();
+              const response = await fetch(candidateUrl, {
+                method: "GET",
+                headers: { Accept: "application/json, text/plain;q=0.9, */*;q=0.8" },
+              });
+              if (!response.ok) {
+                continue;
               }
+              resolvedContentUrl = candidateUrl;
+              const contentType = response.headers.get("content-type") ?? "";
+              if (contentType.includes("application/json")) {
+                metadata = (await response.json()) as Record<string, unknown>;
+              }
+              break;
             } catch {
-              // Ignore metadata fetch failures.
+              // Try next gateway
             }
           }
+
+          let mediaType: PredictionRecord["mediaType"];
+          let mediaCid: string | undefined;
+          let mediaUrl: string | undefined;
+          let mediaMimeType: string | undefined;
+          let textContent: string | undefined;
+          let title: string | undefined;
+          let summary: string | undefined;
+
+          if (metadata) {
+            title =
+              typeof metadata.title === "string" ? metadata.title : undefined;
+            summary =
+              typeof metadata.summary === "string" ? metadata.summary : undefined;
+            const formatField =
+              typeof metadata.format === "string"
+                ? metadata.format.toLowerCase()
+                : undefined;
+            if (formatField === "video" || prediction.format === 0) {
+              mediaType = "video";
+            } else if (formatField === "image") {
+              mediaType = "image";
+            } else {
+              mediaType = "text";
+            }
+
+            const media = metadata.media as
+              | {
+                  cid?: string;
+                  url?: string;
+                  mimeType?: string;
+                  posterCid?: string;
+                  posterUrl?: string;
+                }
+              | undefined;
+
+            if (media) {
+              mediaCid = typeof media.cid === "string" ? media.cid : undefined;
+              mediaMimeType =
+                typeof media.mimeType === "string" ? media.mimeType : undefined;
+              mediaUrl =
+                typeof media.url === "string"
+                  ? media.url
+                  : mediaCid
+                  ? `${gateway}/${mediaCid}`
+                  : undefined;
+            }
+
+            if (mediaType === "text") {
+              if (typeof metadata.content === "string") {
+                textContent = metadata.content;
+              } else if (typeof metadata.body === "string") {
+                textContent = metadata.body;
+              }
+            }
+          } else {
+            // Fallback for legacy predictions where CID points directly to media/text
+            if (FORMAT_LABEL[prediction.format] === "text") {
+              mediaType = "text";
+            } else {
+              mediaType = "video";
+            }
+          }
+
+          const finalContentUrl =
+            mediaUrl ??
+            (mediaCid ? `${gateway}/${mediaCid}` : resolvedContentUrl);
 
           return {
             id: Number(prediction.id),
             creator: prediction.creator,
             contentCid: prediction.contentCID,
-            contentUrl,
+            contentUrl: finalContentUrl,
             format: FORMAT_LABEL[prediction.format] ?? "text",
+            mediaType,
+            mediaCid,
+            mediaUrl: finalContentUrl,
+            mediaMimeType,
+            textContent,
+            title,
+            summary,
             category: prediction.category,
             deadline: Number(prediction.deadline),
             lockTime: Number(prediction.lockTime),

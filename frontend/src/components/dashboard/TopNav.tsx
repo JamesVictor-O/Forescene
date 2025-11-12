@@ -5,25 +5,27 @@ import { Search, Plus, Bell, Menu, X } from "lucide-react";
 import Image from "next/image";
 import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { useForeBalance } from "@/hooks/useForeBalance";
 
 function shortenAddress(address: string): string {
   return `${address.slice(0, 5)}…${address.slice(-3)}`;
 }
 
-type TopNavProps = {
-  onOpenCreate: () => void;
+type ForeBalance = {
+  formatted: string;
+  symbol: string;
+  error?: unknown;
 };
 
-export default function TopNav({ onOpenCreate }: TopNavProps) {
+type TopNavProps = {
+  onOpenCreate: () => void;
+  balance: ForeBalance;
+};
+
+export default function TopNav({ onOpenCreate, balance }: TopNavProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const { authenticated, ready, login, logout } = usePrivy();
   const { wallets } = useWallets();
-  const {
-    balance: foreBalance,
-    isLoading: isForeLoading,
-    error: foreError,
-  } = useForeBalance();
+ 
 
   const primaryWalletAddress = wallets?.[0]?.address;
   const mobileWalletLabel = !ready
@@ -43,21 +45,21 @@ export default function TopNav({ onOpenCreate }: TopNavProps) {
 
   const formattedForeBalance = useMemo(() => {
     if (!primaryWalletAddress) return null;
-    if (isForeLoading) return "FORE · …";
-    if (foreBalance) {
-      const numeric = Number(foreBalance.formatted);
+    
+    if (balance) {
+      const numeric = Number(balance.formatted);
       if (Number.isFinite(numeric)) {
         const maximumFractionDigits = numeric < 1 ? 4 : 2;
         return `${numeric.toLocaleString(undefined, {
           minimumFractionDigits: 0,
           maximumFractionDigits,
-        })} ${foreBalance.symbol}`;
+        })} ${balance.symbol}`;
       }
-      return `${foreBalance.formatted} ${foreBalance.symbol}`;
+      return `${balance.formatted} ${balance.symbol}`;
     }
-    if (foreError) return "FORE · --";
+
     return "FORE · 0";
-  }, [foreBalance, foreError, isForeLoading, primaryWalletAddress]);
+  }, [balance]);
 
   return (
     <nav className="fixed top-0 w-full bg-zinc-950/85 backdrop-blur-md border-b border-zinc-900/70 shadow-[0_10px_40px_rgba(8,8,12,0.55)] z-50">

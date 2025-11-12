@@ -23,6 +23,13 @@ export async function POST(request: Request) {
     );
   }
 
+  let metadata:
+    | {
+        name?: string;
+        keyvalues?: Record<string, string>;
+      }
+    | undefined;
+
   const pinataForm = new FormData();
   pinataForm.append("file", file, file.name || "upload");
 
@@ -32,7 +39,7 @@ export async function POST(request: Request) {
         name?: string;
         keyvalues?: Record<string, string>;
       };
-      const metadata = {
+      metadata = {
         name: parsed.name ?? file.name ?? "prediction-content",
         keyvalues: parsed.keyvalues ?? {},
       };
@@ -44,16 +51,54 @@ export async function POST(request: Request) {
 
   pinataForm.append("pinataOptions", JSON.stringify({ cidVersion: 1 }));
 
-  const response = await fetch(
-    "https://api.pinata.cloud/pinning/pinFileToIPFS",
-    {
+  const pinataFileEndpoint = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+  const pinataJsonEndpoint = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+
+  let response: Response;
+
+  const isJsonFile =
+    (file.type && file.type.includes("json")) ||
+    file.name?.toLowerCase().endsWith(".json");
+
+  if (isJsonFile) {
+    try {
+      const jsonText = await file.text();
+      const jsonPayload = JSON.parse(jsonText);
+      response = await fetch(pinataJsonEndpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${pinataJwt}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          pinataContent: jsonPayload,
+          pinataMetadata: metadata ?? {
+            name: file.name ?? "prediction-json",
+          },
+          pinataOptions: { cidVersion: 1 },
+        }),
+      });
+    } catch (error) {
+      return NextResponse.json(
+        {
+          error: "Failed to prepare JSON payload for Pinata.",
+          details:
+            error instanceof Error
+              ? error.message
+              : "Unknown JSON parsing error",
+        },
+        { status: 500 }
+      );
+    }
+  } else {
+    response = await fetch(pinataFileEndpoint, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${pinataJwt}`,
       },
       body: pinataForm,
-    }
-  );
+    });
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -69,9 +114,12 @@ export async function POST(request: Request) {
 
   const data = await response.json();
 
-  return NextResponse.json({
-    cid: data.IpfsHash,
-    size: data.PinSize,
-    timestamp: data.Timestamp,
-  });
+  return NextResponse.json(
+    {
+      cid: data.IpfsHash ?? data.IpfsHash ?? data.cid,
+      size: data.PinSize ?? data.size,
+      timestamp: data.Timestamp ?? data.timestamp,
+    },
+    { status: 200 }
+  );
 }

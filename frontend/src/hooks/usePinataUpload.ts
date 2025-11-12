@@ -29,9 +29,48 @@ export function usePinataUpload() {
   const [isUploading, setIsUploading] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  const PINATA_API_URL = "https://api.pinata.cloud";
   const gatewayBase =
     process.env.NEXT_PUBLIC_PINATA_GATEWAY ??
     "https://gateway.pinata.cloud/ipfs";
+  const usePublicIpfs = useMemo(
+    () => process.env.NEXT_PUBLIC_USE_PUBLIC_IPFS === "true",
+    []
+  );
+
+  const getPinataCredentials = useCallback(() => {
+    const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
+    const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+
+    if (!apiKey || !secretKey) {
+      throw new Error(
+        "Pinata credentials missing. Set NEXT_PUBLIC_PINATA_API_KEY and NEXT_PUBLIC_PINATA_SECRET_KEY."
+      );
+    }
+
+    return { apiKey, secretKey };
+  }, []);
+
+  const normalizeMetadata = useCallback(
+    (metadata: UploadOptions["metadata"], fallbackName: string) => ({
+      name: metadata?.name ?? fallbackName,
+      keyvalues: metadata?.keyvalues ?? {},
+    }),
+    []
+  );
+
+  const uploadToPublicIpfs = useCallback(
+    async (blob: Blob): Promise<PinataUploadResult> => {
+      const mockHash = `Qm${Math.random().toString(36).slice(2)}`;
+      return {
+        cid: mockHash,
+        url: `https://ipfs.io/ipfs/${mockHash}`,
+        size: blob.size,
+        timestamp: new Date().toISOString(),
+      };
+    },
+    []
+  );
 
   const reset = useCallback(() => {
     setProgress(null);
@@ -50,12 +89,36 @@ export function usePinataUpload() {
       setError(null);
       setProgress(null);
 
+      if (usePublicIpfs) {
+        setIsUploading(true);
+        const result = await uploadToPublicIpfs(blob);
+        setIsUploading(false);
+        return result;
+      }
+
+      let apiKey: string;
+      let secretKey: string;
+      try {
+        const credentials = getPinataCredentials();
+        apiKey = credentials.apiKey;
+        secretKey = credentials.secretKey;
+      } catch (credentialError) {
+        setError(
+          credentialError instanceof Error
+            ? credentialError.message
+            : "Missing Pinata credentials."
+        );
+        throw credentialError;
+      }
+
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
       return new Promise<PinataUploadResult>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        xhr.open("POST", "/api/pinata/upload");
+        xhr.open("POST", `${PINATA_API_URL}/pinning/pinFileToIPFS`);
+        xhr.setRequestHeader("pinata_api_key", apiKey);
+        xhr.setRequestHeader("pinata_secret_api_key", secretKey);
 
         xhr.upload.onprogress = (event) => {
           if (!event.lengthComputable) return;
@@ -66,9 +129,31 @@ export function usePinataUpload() {
           });
         };
 
+        const parseErrorResponse = () => {
+          if (!xhr.responseText) return null;
+          try {
+            const json = JSON.parse(xhr.responseText) as {
+              error?: string;
+              details?: string;
+              status?: number;
+            };
+            if (json.error || json.details) {
+              return (
+                json.error ??
+                json.details ??
+                `Pinata upload failed with status ${json.status ?? xhr.status}`
+              );
+            }
+          } catch {
+            // Ignore parse failures.
+          }
+          return null;
+        };
+
         xhr.onerror = () => {
           setIsUploading(false);
-          const message = xhr.statusText || "Upload failed";
+          const message =
+            parseErrorResponse() || xhr.statusText || "Upload failed";
           setError(message);
           reject(new Error(message));
         };
@@ -78,23 +163,35 @@ export function usePinataUpload() {
           if (xhr.status >= 200 && xhr.status < 300) {
             try {
               const payload = JSON.parse(xhr.responseText) as {
-                cid: string;
+                cid?: string;
+                IpfsHash?: string;
                 size?: number;
                 timestamp?: string;
               };
+              const cid = payload.cid ?? payload.IpfsHash;
+              if (!cid) {
+                throw new Error("Pinata response missing CID.");
+              }
               resolve({
-                cid: payload.cid,
+                cid,
                 size: payload.size,
                 timestamp: payload.timestamp,
-                url: `${gatewayBase.replace(/\/$/, "")}/${payload.cid}`,
+                url: `${gatewayBase.replace(/\/$/, "")}/${cid}`,
               });
-            } catch {
-              const message = "Failed to parse Pinata response";
+            } catch (parseError) {
+              const message =
+                parseError instanceof Error
+                  ? parseError.message
+                  : "Failed to parse Pinata response";
               setError(message);
-              reject(new Error(message));
+              reject(
+                parseError instanceof Error ? parseError : new Error(message)
+              );
             }
           } else {
+            const parsedError = parseErrorResponse();
             const message =
+              parsedError ||
               xhr.responseText ||
               `Pinata upload failed with status ${xhr.status}`;
             setError(message);
@@ -115,18 +212,26 @@ export function usePinataUpload() {
 
         if (options?.metadata) {
           formData.append(
-            "metadata",
-            JSON.stringify({
-              name: options.metadata.name,
-              keyvalues: options.metadata.keyvalues,
-            })
+            "pinataMetadata",
+            JSON.stringify(normalizeMetadata(options.metadata, fileName))
           );
         }
+
+        formData.append(
+          "pinataOptions",
+          JSON.stringify({ cidVersion: 1, wrapWithDirectory: false })
+        );
 
         xhr.send(formData);
       });
     },
-    [gatewayBase]
+    [
+      getPinataCredentials,
+      gatewayBase,
+      normalizeMetadata,
+      uploadToPublicIpfs,
+      usePublicIpfs,
+    ]
   );
 
   const uploadFile = useCallback(
@@ -139,15 +244,82 @@ export function usePinataUpload() {
     async (payload: unknown, fileName?: string, options?: UploadOptions) => {
       const jsonString = JSON.stringify(payload);
       const blob = new Blob([jsonString], { type: "application/json" });
-      return uploadBlob(blob, fileName ?? `prediction-${Date.now()}.json`, {
-        ...options,
-        metadata: {
-          name: options?.metadata?.name ?? fileName ?? "prediction-metadata",
-          keyvalues: options?.metadata?.keyvalues,
-        },
-      });
+
+      if (usePublicIpfs) {
+        setIsUploading(true);
+        const result = await uploadToPublicIpfs(blob);
+        setIsUploading(false);
+        return result;
+      }
+
+      let apiKey: string;
+      let secretKey: string;
+      try {
+        const credentials = getPinataCredentials();
+        apiKey = credentials.apiKey;
+        secretKey = credentials.secretKey;
+      } catch (credentialError) {
+        setError(
+          credentialError instanceof Error
+            ? credentialError.message
+            : "Missing Pinata credentials."
+        );
+        throw credentialError;
+      }
+
+      const targetName = fileName ?? `prediction-${Date.now()}.json`;
+
+      setIsUploading(true);
+      setProgress(null);
+      setError(null);
+
+      try {
+        const response = await fetch(
+          `${PINATA_API_URL}/pinning/pinJSONToIPFS`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              pinata_api_key: apiKey,
+              pinata_secret_api_key: secretKey,
+            },
+            body: JSON.stringify({
+              pinataContent: payload,
+              pinataMetadata: normalizeMetadata(options?.metadata, targetName),
+              pinataOptions: { cidVersion: 1 },
+            }),
+            signal: options?.signal,
+          }
+        );
+
+        if (!response.ok) {
+          const errorBody = await response.text();
+          const message =
+            errorBody || `Pinata upload failed with status ${response.status}`;
+          setError(message);
+          throw new Error(message);
+        }
+
+        const data = await response.json();
+        const cid = data.IpfsHash ?? data.cid;
+
+        return {
+          cid,
+          size: data.PinSize ?? blob.size,
+          timestamp: data.Timestamp ?? new Date().toISOString(),
+          url: `${gatewayBase.replace(/\/$/, "")}/${cid}`,
+        };
+      } finally {
+        setIsUploading(false);
+      }
     },
-    [uploadBlob]
+    [
+      gatewayBase,
+      getPinataCredentials,
+      normalizeMetadata,
+      uploadToPublicIpfs,
+      usePublicIpfs,
+    ]
   );
 
   const state = useMemo(

@@ -2,19 +2,18 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Play,
   ThumbsUp,
   ThumbsDown,
   MessageCircle,
   Flame,
   TrendingUp,
   Clock,
-  Video,
   Award,
   Crown,
   Copy as CopyIcon,
   Loader2,
 } from "lucide-react";
+import Image from "next/image";
 import { useWallets, usePrivy } from "@privy-io/react-auth";
 import { parseUnits } from "viem";
 import {
@@ -27,9 +26,16 @@ import {
   type PredictionRecord,
 } from "@/hooks/usePredictions";
 
+type FeedMediaType = "video" | "image" | "text";
+
 type FeedItem = {
   id: number;
   format: "video" | "text";
+  mediaType: FeedMediaType;
+  mediaUrl?: string;
+  posterUrl?: string;
+  textContent?: string;
+  summary?: string;
   user: {
     name: string;
     avatar: string;
@@ -56,6 +62,8 @@ const DEFAULT_FEED_ITEMS: FeedItem[] = [
   {
     id: 1,
     format: "video",
+    mediaType: "video",
+    mediaUrl: "",
     user: {
       name: "CryptoSage",
       avatar: "CS",
@@ -78,6 +86,7 @@ const DEFAULT_FEED_ITEMS: FeedItem[] = [
   {
     id: 2,
     format: "text",
+    mediaType: "text",
     user: {
       name: "SportsOracle",
       avatar: "SO",
@@ -100,6 +109,8 @@ const DEFAULT_FEED_ITEMS: FeedItem[] = [
   {
     id: 3,
     format: "video",
+    mediaType: "video",
+    mediaUrl: "",
     user: {
       name: "TechVision",
       avatar: "TV",
@@ -122,6 +133,7 @@ const DEFAULT_FEED_ITEMS: FeedItem[] = [
   {
     id: 4,
     format: "text",
+    mediaType: "text",
     user: {
       name: "MarketMaven",
       avatar: "MM",
@@ -501,13 +513,17 @@ function mapPredictionToFeedItem(
 ): FeedItem {
   const metadata = (prediction.metadata ?? {}) as Record<string, unknown>;
   const title =
-    typeof metadata.title === "string"
+    typeof prediction.title === "string"
+      ? prediction.title
+      : typeof metadata.title === "string"
       ? metadata.title
       : typeof metadata.content === "string"
       ? metadata.content
       : `Prediction #${prediction.id}`;
   const summary =
-    typeof metadata.summary === "string"
+    typeof prediction.summary === "string"
+      ? prediction.summary
+      : typeof metadata.summary === "string"
       ? metadata.summary
       : typeof metadata.description === "string"
       ? metadata.description
@@ -519,6 +535,29 @@ function mapPredictionToFeedItem(
     for: Number(oddsData?.for ?? 0),
     against: Number(oddsData?.against ?? 0),
   };
+  const mediaType: FeedMediaType =
+    prediction.mediaType ??
+    (prediction.format === "video"
+      ? "video"
+      : typeof metadata.image === "string" && metadata.image.length > 0
+      ? "image"
+      : "text");
+  const mediaUrl =
+    prediction.mediaUrl ??
+    (mediaType === "video"
+      ? prediction.contentUrl
+      : mediaType === "image"
+      ? (metadata.image as string)
+      : undefined);
+  const textContent =
+    prediction.textContent ??
+    (mediaType === "text"
+      ? typeof metadata.content === "string"
+        ? metadata.content
+        : typeof metadata.body === "string"
+        ? metadata.body
+        : summary ?? ""
+      : undefined);
 
   const deadlineDate = new Date(prediction.deadline * 1000);
   const formattedDeadline = isNaN(deadlineDate.getTime())
@@ -528,6 +567,10 @@ function mapPredictionToFeedItem(
   return {
     id: prediction.id,
     format: prediction.format,
+    mediaType,
+    mediaUrl,
+    textContent,
+    summary,
     user: {
       name: shortenAddress(prediction.creator),
       avatar: prediction.creator.slice(2, 4).toUpperCase(),
@@ -629,56 +672,51 @@ function FeedCard({
           </div>
         )}
 
-        {/* Content - Video or Text */}
-        {item.format === "video" ? (
-          <div className="  w-full flex justify-center h-80 rounded-sm overflow-hidden">
-            {/* Responsive aspect ratio container */}
-            <div className="aspect-9/16  w-full relative bg-black">
-              {/* Background gradient */}
-              <div
-                className={`absolute inset-0 ${
-                  item.thumbnail === "crypto-bg"
-                    ? "bg-linear-to-br from-cyan-900/20 to-zinc-900"
-                    : item.thumbnail === "sports-bg"
-                    ? "bg-linear-to-br from-purple-900/20 to-zinc-900"
-                    : "bg-linear-to-br from-blue-900/20 to-zinc-900"
-                }`}
-              />
-
-              {/* Play button */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-zinc-900/80 backdrop-blur-sm border border-zinc-800 rounded-full flex items-center justify-center hover:bg-zinc-800/80 transition cursor-pointer">
-                  <Play
-                    className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-white ml-1"
-                    fill="currentColor"
-                  />
-                </div>
-              </div>
-
-              {/* Bottom gradient */}
-              <div className="absolute bottom-0 left-0 right-0 h-16 sm:h-20 bg-linear-to-t from-zinc-950 to-transparent" />
-
-              {/* Duration badge */}
-              <div className="absolute top-2 right-2 bg-zinc-900/90 backdrop-blur-sm border border-zinc-800/50 text-[10px] px-1.5 py-0.5 flex items-center gap-0.5 rounded-sm">
-                <Video className="w-2.5 h-2.5" />
-                <span>15s</span>
-              </div>
-
-              {/* Prediction text overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-                <p className="text-white font-bold text-sm sm:text-base leading-tight line-clamp-2">
-                  {item.prediction}
-                </p>
-              </div>
-            </div>
+        {/* Content Rendering */}
+        {item.mediaType === "video" && item.mediaUrl ? (
+          <div className="w-full flex justify-center rounded-sm overflow-hidden bg-black mb-3">
+            <video
+              src={item.mediaUrl}
+              className="w-full max-h-[480px] object-cover"
+              controls
+              playsInline
+              preload="metadata"
+            />
+          </div>
+        ) : item.mediaType === "image" && item.mediaUrl ? (
+          <div className="w-full bg-zinc-950/60 border border-zinc-800/60 rounded-sm overflow-hidden mb-3">
+            <Image
+              src={item.mediaUrl}
+              alt={item.prediction}
+              width={720}
+              height={1024}
+              className="w-full h-auto object-cover"
+            />
           </div>
         ) : (
           <div className="bg-zinc-950/50 border border-zinc-800/50 p-3 sm:p-4 md:p-5 mb-3 rounded-sm">
             <p className="text-base sm:text-lg md:text-xl font-bold leading-snug">
-              {item.prediction}
+              {item.textContent ?? item.prediction}
             </p>
           </div>
         )}
+
+        {/* Prediction Details */}
+        <div className="mb-3 sm:mb-4">
+          <p className="text-base sm:text-lg md:text-xl font-bold leading-tight text-white">
+            {item.prediction}
+          </p>
+          {item.summary && (
+            <p className="mt-1 text-xs sm:text-sm text-zinc-400">
+              {item.summary}
+            </p>
+          )}
+          {item.mediaType === "text" && item.textContent && (
+            <p className="mt-2 text-sm sm:text-base text-zinc-300 whitespace-pre-wrap">
+              {item.textContent}
+            </p>
+          )}
+        </div>
 
         {/* Meta Info */}
         <div className="flex items-center justify-between text-xs sm:text-sm mb-3">
