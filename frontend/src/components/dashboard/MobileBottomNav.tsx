@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Compass, Trophy, Target, Plus } from "lucide-react";
+import { Home, Trophy, Target, Plus } from "lucide-react";
 
 type MobileBottomNavProps = {
   activeTab: string;
@@ -13,7 +13,6 @@ const NAV_ITEMS: Array<{
   icon: React.ReactNode;
 }> = [
   { key: "feed", label: "Feed", icon: <Home className="w-5 h-5" /> },
-  { key: "discover", label: "Discover", icon: <Compass className="w-5 h-5" /> },
   {
     key: "predictions",
     label: "Predictions",

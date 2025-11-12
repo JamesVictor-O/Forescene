@@ -13,7 +13,8 @@ export default function Problem() {
             The World Is Full of Opinions
           </h2>
           <p className="text-zinc-400 text-lg max-w-2xl mx-auto font-light">
-            But there's no proof of who was actually right when things play out.
+            But there&apos;s no proof of who was actually right when things play
+            out.
           </p>
         </div>
 

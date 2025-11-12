@@ -1,17 +1,151 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { Loader2, X } from "lucide-react";
-import { predictionRegistryAbi } from "@/abis/predictionRegistry";
-import type { PredictionRegistryFunction } from "@/abis/predictionRegistry";
+import { usePrivy } from "@privy-io/react-auth";
+import { Loader2, Upload, Video, X } from "lucide-react";
+import { useAccount } from "wagmi";
+
+import {
+  useCreatePrediction,
+  type CreatePredictionStep,
+} from "@/hooks/useCreatePrediction";
+import type { UploadProgress } from "@/hooks/usePinataUpload";
 
 type FormatOption = "video" | "text";
 
 interface CreatePredictionModalProps {
   open: boolean;
   onClose: () => void;
+}
+
+type CategorySectionProps = {
+  category: string;
+  setCategory: (value: string) => void;
+  customCategory: string;
+  setCustomCategory: (value: string) => void;
+  deadline: string;
+  setDeadline: (value: string) => void;
+  creatorFee: string;
+  setCreatorFee: (value: string) => void;
+};
+
+function CategorySection({
+  category,
+  setCategory,
+  customCategory,
+  setCustomCategory,
+  deadline,
+  setDeadline,
+  creatorFee,
+  setCreatorFee,
+}: CategorySectionProps) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wide text-zinc-500">
+          Category
+        </label>
+        <select
+          value={category}
+          onChange={(event) => setCategory(event.target.value)}
+          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+        >
+          {CATEGORY_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {option.toUpperCase()}
+            </option>
+          ))}
+          <option value="custom">CUSTOM</option>
+        </select>
+      </div>
+      {category === "custom" && (
+        <div className="space-y-2">
+          <label className="text-xs uppercase tracking-wide text-zinc-500">
+            Custom Category
+          </label>
+          <input
+            type="text"
+            value={customCategory}
+            onChange={(event) => setCustomCategory(event.target.value)}
+            placeholder="e.g. ai, music, gaming"
+            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+            required
+          />
+        </div>
+      )}
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wide text-zinc-500">
+          Deadline
+        </label>
+        <input
+          type="datetime-local"
+          value={deadline}
+          onChange={(event) => setDeadline(event.target.value)}
+          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wide text-zinc-500">
+          Creator Fee (bps)
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={MAX_CREATOR_FEE}
+          value={creatorFee}
+          onChange={(event) => setCreatorFee(event.target.value)}
+          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+        />
+        <p className="text-[10px] text-zinc-500">
+          Default 250 bps (2.5%). Maximum 10,000 bps (100%).
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function calculatePercentage(
+  progress: UploadProgress | null
+): number | undefined {
+  if (!progress || progress.total === 0) return undefined;
+  return Number(((progress.loaded / progress.total) * 100).toFixed(2));
+}
+
+function UploadStatusCard({ progress }: { progress: UploadProgress | null }) {
+  const percentage = calculatePercentage(progress) ?? 0;
+  return (
+    <div className="w-full rounded-md border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-left">
+      <p className="text-xs text-zinc-500 mb-2">Uploading to IPFS…</p>
+      <div className="w-full h-2 rounded-full bg-zinc-800 overflow-hidden">
+        <div
+          className="h-2 bg-cyan-500 transition-all duration-200"
+          style={{ width: `${Math.min(100, percentage)}%` }}
+        />
+      </div>
+      <p className="text-[11px] text-zinc-500 mt-2">{percentage}% complete</p>
+    </div>
+  );
+}
+
+function stepMessage(step: CreatePredictionStep) {
+  switch (step) {
+    case "validating":
+      return "Validating prediction details…";
+    case "uploading":
+      return "Uploading content to IPFS…";
+    case "submitting":
+      return "Submitting transaction…";
+    case "waiting":
+      return "Waiting for blockchain confirmation…";
+    case "success":
+      return "Prediction created successfully!";
+    case "error":
+      return "An error occurred. Please try again.";
+    default:
+      return "";
+  }
 }
 
 const CATEGORY_OPTIONS = [
@@ -22,74 +156,68 @@ const CATEGORY_OPTIONS = [
   "tech",
 ];
 
+const MAX_CREATOR_FEE = 10_000;
+
 export default function CreatePredictionModal({
   open,
   onClose,
 }: CreatePredictionModalProps) {
   const { ready, authenticated } = usePrivy();
-  const { wallets } = useWallets();
-
-  type PrivyWalletWithClient = {
-    walletClient?: {
-      writeContract: (args: {
-        address: `0x${string}`;
-        abi: typeof predictionRegistryAbi;
-        functionName: PredictionRegistryFunction;
-        account: `0x${string}`;
-        args: [string, number, string, bigint, number];
-      }) => Promise<string>;
-    };
-  };
-
-  const primaryWallet = wallets[0] as (typeof wallets)[number] &
-    PrivyWalletWithClient;
-  const walletClient = primaryWallet?.walletClient;
-  const account = primaryWallet?.address as `0x${string}` | undefined;
-
-  const registryAddress = process.env
-    .NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS as `0x${string}` | undefined;
+  const { isConnected } = useAccount();
+  const {
+    createPrediction,
+    isCreating,
+    isUploading,
+    uploadProgress,
+    currentStep,
+    error,
+    transactionHash,
+    reset,
+  } = useCreatePrediction();
 
   const [format, setFormat] = useState<FormatOption>("video");
   const [category, setCategory] = useState<string>(
     CATEGORY_OPTIONS[0] ?? "crypto"
   );
-  const [contentCid, setContentCid] = useState("");
-  const [description, setDescription] = useState("");
-  const [deadline, setDeadline] = useState("");
-  const [creatorFee, setCreatorFee] = useState<string>("250");
   const [customCategory, setCustomCategory] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [txStatus, setTxStatus] = useState<string | null>(null);
-  const [txError, setTxError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [portalElement, setPortalElement] = useState<Element | null>(null);
-
-  useEffect(() => {
-    setMounted(true);
-    setPortalElement(document.body);
-    return () => setMounted(false);
-  }, []);
+  const [title, setTitle] = useState("");
+  const [summary, setSummary] = useState("");
+  const [textContent, setTextContent] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [useExistingCid, setUseExistingCid] = useState(false);
+  const [existingCid, setExistingCid] = useState("");
+  const [deadline, setDeadline] = useState("");
+  const [creatorFee, setCreatorFee] = useState("250");
+  const { address } = useAccount();
 
   const resolvedCategory = useMemo(() => {
-    return category === "custom"
-      ? customCategory.trim().toLowerCase()
-      : category;
+    const normalized =
+      category === "custom"
+        ? customCategory.trim().toLowerCase()
+        : category.toLowerCase();
+    return normalized || "general";
   }, [category, customCategory]);
+  
+
+ 
 
   const resetState = () => {
+    reset();
     setFormat("video");
     setCategory(CATEGORY_OPTIONS[0] ?? "crypto");
     setCustomCategory("");
-    setContentCid("");
-    setDescription("");
+    setTitle("");
+    setSummary("");
+    setTextContent("");
+    setVideoFile(null);
+    setUseExistingCid(false);
+    setExistingCid("");
     setDeadline("");
     setCreatorFee("250");
-    setTxStatus(null);
-    setTxError(null);
   };
 
   const handleClose = () => {
-    if (isSubmitting) return;
+    if (isCreating || isUploading) return;
     resetState();
     onClose();
   };
@@ -97,95 +225,42 @@ export default function CreatePredictionModal({
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!ready || !authenticated) {
-      setTxError("Connect your wallet before creating a prediction.");
-      return;
-    }
+    if (!ready || !authenticated) return;
+    if (!deadline) return;
 
-    if (!walletClient || !account) {
-      setTxError(
-        "Wallet client not available. Please reconnect and try again."
-      );
-      return;
-    }
 
-    if (!registryAddress) {
-      setTxError(
-        "Registry contract address is missing. Check environment configuration."
-      );
-      return;
-    }
+    const deadlineSeconds = new Date(deadline).getTime();
+    if (!Number.isFinite(deadlineSeconds)) return;
 
-    if (!contentCid.trim()) {
-      setTxError("Content CID is required.");
-      return;
-    }
+    const fee = Number(creatorFee);
+    if (!Number.isFinite(fee) || fee < 0 || fee > MAX_CREATOR_FEE) return;
 
-    if (!resolvedCategory) {
-      setTxError("Category is required.");
-      return;
-    }
+    const submission = await createPrediction({
+      format,
+      category: resolvedCategory,
+      deadline: Math.floor(deadlineSeconds / 1000),
+      creatorFeeBps: Math.floor(fee),
+      title: title.trim() || undefined,
+      summary: summary.trim() || undefined,
+      existingCid: useExistingCid ? existingCid.trim() : undefined,
+      textContent:
+        format === "text" && !useExistingCid ? textContent.trim() : undefined,
+      file:
+        format === "video" && !useExistingCid
+          ? videoFile ?? undefined
+          : undefined,
+    });
 
-    if (!deadline) {
-      setTxError("Please select a deadline.");
-      return;
-    }
-
-    const deadlineSeconds = Math.floor(new Date(deadline).getTime() / 1000);
-    const nowSeconds = Math.floor(Date.now() / 1000);
-
-    if (
-      !Number.isFinite(deadlineSeconds) ||
-      deadlineSeconds <= nowSeconds + 3600
-    ) {
-      setTxError("Deadline must be at least one hour in the future.");
-      return;
-    }
-
-    const feeValue = Number(creatorFee);
-    if (!Number.isFinite(feeValue) || feeValue < 0 || feeValue > 10_000) {
-      setTxError("Creator fee must be between 0 and 10,000 basis points.");
-      return;
-    }
-
-    try {
-      setIsSubmitting(true);
-      setTxError(null);
-      setTxStatus("Submitting transaction...");
-
-      const formatValue = format === "video" ? 0 : 1;
-      const descriptionSuffix = description.trim()
-        ? `\n${description.trim()}`
-        : "";
-      const content = `${contentCid.trim()}${descriptionSuffix}`;
-
-      const hash = await walletClient.writeContract({
-        address: registryAddress,
-        abi: predictionRegistryAbi,
-        functionName: "createPrediction",
-        account,
-        args: [
-          content,
-          formatValue,
-          resolvedCategory,
-          BigInt(deadlineSeconds),
-          Math.floor(feeValue),
-        ],
-      });
-
-      setTxStatus(`Transaction sent: ${hash}`);
-
+    if (submission) {
       resetState();
       onClose();
-    } catch (error) {
-      const message = (error as Error).message || "Transaction failed";
-      setTxError(message);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
-  if (!open || !mounted || !portalElement) return null;
+  const portalElement =
+    typeof window !== "undefined" ? (document.body as Element) : null;
+
+  if (!open || !portalElement) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-zinc-950/90 backdrop-blur-sm px-3 sm:px-0">
@@ -238,112 +313,85 @@ export default function CreatePredictionModal({
 
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Content CID / URL
+              Prediction Title
             </label>
             <input
               type="text"
-              value={contentCid}
-              onChange={(event) => setContentCid(event.target.value)}
-              placeholder={
-                format === "video"
-                  ? "ipfs://... or https://..."
-                  : "CID or reference"
-              }
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Give your prediction a punchy title"
               className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-              required
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Description (optional)
+              Summary (optional)
             </label>
             <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Add extra context for your prediction"
+              value={summary}
+              onChange={(event) => setSummary(event.target.value)}
+              placeholder="Add extra context or the thesis behind your prediction"
               rows={3}
               className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wide text-zinc-500">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-              >
-                {CATEGORY_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option.toUpperCase()}
-                  </option>
-                ))}
-                <option value="custom">CUSTOM</option>
-              </select>
-            </div>
-            {category === "custom" && (
-              <div className="space-y-2">
-                <label className="text-xs uppercase tracking-wide text-zinc-500">
-                  Custom Category
-                </label>
-                <input
-                  type="text"
-                  value={customCategory}
-                  onChange={(event) => setCustomCategory(event.target.value)}
-                  placeholder="e.g. ai, music, gaming"
-                  className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-                  required
-                />
-              </div>
-            )}
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wide text-zinc-500">
-                Deadline
-              </label>
-              <input
-                type="datetime-local"
-                value={deadline}
-                onChange={(event) => setDeadline(event.target.value)}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-xs uppercase tracking-wide text-zinc-500">
-                Creator Fee (bps)
-              </label>
-              <input
-                type="number"
-                value={creatorFee}
-                onChange={(event) => setCreatorFee(event.target.value)}
-                min={0}
-                max={10_000}
-                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-              />
-              <p className="text-[10px] text-zinc-500">
-                Default 250 bps (2.5%). Cap at 10,000 bps (100%).
-              </p>
-            </div>
-          </div>
+          <ContentSection
+            format={format}
+            useExistingCid={useExistingCid}
+            setUseExistingCid={setUseExistingCid}
+            existingCid={existingCid}
+            setExistingCid={setExistingCid}
+            videoFile={videoFile}
+            setVideoFile={setVideoFile}
+            textContent={textContent}
+            setTextContent={setTextContent}
+            isUploading={isUploading}
+            uploadProgress={uploadProgress}
+          />
 
-          {txError && <p className="text-xs text-red-400">{txError}</p>}
-          {txStatus && !txError && (
-            <p className="text-xs text-cyan-400">{txStatus}</p>
+          <CategorySection
+            category={category}
+            setCategory={setCategory}
+            customCategory={customCategory}
+            setCustomCategory={setCustomCategory}
+            deadline={deadline}
+            setDeadline={setDeadline}
+            creatorFee={creatorFee}
+            setCreatorFee={setCreatorFee}
+          />
+
+
+          {error && <p className="text-xs text-red-400">{error.message}</p>}
+          {!error && transactionHash && (
+            <p className="text-xs text-cyan-400 break-all">
+              Transaction: {transactionHash}
+            </p>
+          )}
+          {currentStep !== "idle" && (
+            <p className="text-[11px] text-zinc-500">
+              {stepMessage(currentStep)}
+            </p>
           )}
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={
+              isCreating ||
+              isUploading ||
+              !authenticated ||
+              !ready ||
+              !isConnected ||
+              (format === "video" && !useExistingCid && !videoFile) ||
+              (format === "text" && !useExistingCid && !textContent.trim())
+            }
             className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-cyan-500/60"
           >
-            {isSubmitting ? (
+            {isCreating || isUploading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Submitting...
+                {isUploading ? "Uploading..." : "Submitting..."}
               </>
             ) : (
               "Publish Prediction"
@@ -353,5 +401,109 @@ export default function CreatePredictionModal({
       </div>
     </div>,
     portalElement
+  );
+}
+
+type ContentSectionProps = {
+  format: FormatOption;
+  useExistingCid: boolean;
+  setUseExistingCid: (value: boolean) => void;
+  existingCid: string;
+  setExistingCid: (cid: string) => void;
+  videoFile: File | null;
+  setVideoFile: (file: File | null) => void;
+  textContent: string;
+  setTextContent: (value: string) => void;
+  isUploading: boolean;
+  uploadProgress: UploadProgress | null;
+};
+
+function ContentSection({
+  format,
+  useExistingCid,
+  setUseExistingCid,
+  existingCid,
+  setExistingCid,
+  videoFile,
+  setVideoFile,
+  textContent,
+  setTextContent,
+  isUploading,
+  uploadProgress,
+}: ContentSectionProps) {
+  return (
+    <div className="space-y-2">
+      <label className="flex items-center justify-between text-xs uppercase tracking-wide text-zinc-500">
+        <span>Prediction Content</span>
+        <span className="flex items-center gap-2 text-[11px] text-cyan-300">
+          <input
+            type="checkbox"
+            className="rounded border border-cyan-500/50 bg-transparent"
+            checked={useExistingCid}
+            onChange={(event) => setUseExistingCid(event.target.checked)}
+          />
+          Use existing CID
+        </span>
+      </label>
+
+      {format === "video" ? (
+        useExistingCid ? (
+          <input
+            type="text"
+            value={existingCid}
+            onChange={(event) => setExistingCid(event.target.value)}
+            placeholder="ipfs://CID or https://gateway/ipfs/..."
+            className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+            required
+          />
+        ) : (
+          <div className="border-2 border-dashed border-zinc-800 rounded-lg p-4 flex flex-col items-center justify-center gap-3 text-center">
+            <div className="flex items-center justify-center w-12 h-12 rounded-full bg-zinc-900">
+              <Video className="w-6 h-6 text-cyan-400" />
+            </div>
+            <div className="space-y-1 text-xs text-zinc-500">
+              <p>Upload a short-form video prediction (max 100MB).</p>
+              {videoFile ? (
+                <p className="text-zinc-300">{videoFile.name}</p>
+              ) : (
+                <p>Select MP4, MOV, or WebM formats.</p>
+              )}
+            </div>
+            <label className="inline-flex items-center gap-2 rounded-md bg-cyan-500/10 border border-cyan-500/30 px-4 py-2 text-sm font-medium text-cyan-200 hover:bg-cyan-500/20 transition cursor-pointer">
+              <Upload className="w-4 h-4" />
+              Choose file
+              <input
+                type="file"
+                accept="video/mp4,video/webm,video/quicktime"
+                className="hidden"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  setVideoFile(file ?? null);
+                }}
+              />
+            </label>
+            {isUploading && <UploadStatusCard progress={uploadProgress} />}
+          </div>
+        )
+      ) : useExistingCid ? (
+        <input
+          type="text"
+          value={existingCid}
+          onChange={(event) => setExistingCid(event.target.value)}
+          placeholder="ipfs://CID or https://gateway/ipfs/..."
+          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+          required
+        />
+      ) : (
+        <textarea
+          rows={6}
+          value={textContent}
+          onChange={(event) => setTextContent(event.target.value)}
+          placeholder="Write out the full prediction and supporting evidence..."
+          className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+          required
+        />
+      )}
+    </div>
   );
 }
