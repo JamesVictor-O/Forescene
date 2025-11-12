@@ -1,7 +1,14 @@
 "use client";
 
 import React, { useMemo } from "react";
-import { Trophy, Medal, Award, TrendingUp, DollarSign, Target } from "lucide-react";
+import {
+  Trophy,
+  Medal,
+  Award,
+  TrendingUp,
+  DollarSign,
+  Target,
+} from "lucide-react";
 import { useAccount } from "wagmi";
 import { Address } from "viem";
 
@@ -31,18 +38,15 @@ export default function Leaderboard() {
 
   if (isLoading) {
     return (
-      <LoadingSkeleton
-        message="Loading leaderboard…"
-        variant="list"
-        rows={5}
-      />
+      <LoadingSkeleton message="Loading leaderboard…" variant="list" rows={5} />
     );
   }
 
   if (!leaderboard || leaderboard.length === 0) {
     return (
       <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-6 text-center text-sm text-zinc-500">
-        No leaderboard data available yet. Create predictions to get on the board!
+        No leaderboard data available yet. Create predictions to get on the
+        board!
       </div>
     );
   }
@@ -58,9 +62,10 @@ export default function Leaderboard() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
             {topThree.map((entry, index) => {
               const position = index + 1;
-              const isCurrentUser =
+              const isCurrentUser = Boolean(
                 connectedAddress &&
-                entry.address.toLowerCase() === connectedAddress.toLowerCase();
+                  entry.address.toLowerCase() === connectedAddress.toLowerCase()
+              );
 
               return (
                 <PodiumCard
@@ -113,9 +118,10 @@ export default function Leaderboard() {
         {/* Mobile: Card Layout */}
         <div className="block sm:hidden divide-y divide-zinc-800/60">
           {restOfLeaderboard.map((entry) => {
-            const isCurrentUser =
+            const isCurrentUser = Boolean(
               connectedAddress &&
-              entry.address.toLowerCase() === connectedAddress.toLowerCase();
+                entry.address.toLowerCase() === connectedAddress.toLowerCase()
+            );
 
             return (
               <LeaderboardCard
@@ -157,9 +163,11 @@ export default function Leaderboard() {
             </thead>
             <tbody className="divide-y divide-zinc-800/60">
               {restOfLeaderboard.map((entry) => {
-                const isCurrentUser =
+                const isCurrentUser = Boolean(
                   connectedAddress &&
-                  entry.address.toLowerCase() === connectedAddress.toLowerCase();
+                    entry.address.toLowerCase() ===
+                      connectedAddress.toLowerCase()
+                );
 
                 return (
                   <tr
@@ -290,7 +298,11 @@ function PodiumCard({
 
   return (
     <div
-      className={`${positionConfig.bg} ${positionConfig.border} border-2 rounded-xl p-4 sm:p-6 ${positionConfig.height} flex flex-col justify-between ${
+      className={`${positionConfig.bg} ${
+        positionConfig.border
+      } border-2 rounded-xl p-4 sm:p-6 ${
+        positionConfig.height
+      } flex flex-col justify-between ${
         isCurrentUser ? "ring-2 ring-cyan-500" : ""
       }`}
     >
@@ -298,7 +310,9 @@ function PodiumCard({
         <div className="flex justify-center mb-2">
           <Icon className={`w-6 h-6 sm:w-8 sm:h-8 ${positionConfig.text}`} />
         </div>
-        <div className={`text-xs sm:text-sm font-bold mb-1 ${positionConfig.text}`}>
+        <div
+          className={`text-xs sm:text-sm font-bold mb-1 ${positionConfig.text}`}
+        >
           {positionConfig.label}
         </div>
         {isCurrentUser && (
@@ -317,7 +331,9 @@ function PodiumCard({
       <div className="space-y-1.5 sm:space-y-2">
         <div className="flex items-center justify-between">
           <span className="text-[10px] sm:text-xs text-zinc-500">Score</span>
-          <span className={`text-xs sm:text-sm font-bold ${positionConfig.text}`}>
+          <span
+            className={`text-xs sm:text-sm font-bold ${positionConfig.text}`}
+          >
             {formatNumber(entry.formattedProphetScore)}
           </span>
         </div>
@@ -328,7 +344,9 @@ function PodiumCard({
           </span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-[10px] sm:text-xs text-zinc-500">Predictions</span>
+          <span className="text-[10px] sm:text-xs text-zinc-500">
+            Predictions
+          </span>
           <span className="text-xs sm:text-sm font-semibold text-white">
             {Number(entry.totalPredictions)}
           </span>
@@ -442,4 +460,3 @@ function formatNumber(value: string): string {
   }
   return num.toFixed(2);
 }
-

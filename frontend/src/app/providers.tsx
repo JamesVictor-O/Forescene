@@ -1,4 +1,4 @@
-// 
+//
 
 "use client";
 
@@ -60,10 +60,9 @@ export default function Providers({ children }: ProvidersProps) {
           accentColor: "#676FFF",
         },
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-        },
-        rpcConfig: {
-          [foresceneBscTestnet.id]: rpcUrl,
+          ethereum: {
+            createOnLogin: "users-without-wallets",
+          },
         },
         supportedChains: [foresceneBscTestnet],
         loginMethods: ["wallet", "email", "sms"],
