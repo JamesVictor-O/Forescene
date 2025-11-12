@@ -88,8 +88,8 @@ async function fetchPinataMetadata(
 ): Promise<{ name?: string } | null> {
   if (!isValidCID(cid)) return null;
 
-  const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-  const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+  const apiKey = process.env.NEXT_PUBLIC_PINATA_API;
+  const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET;
 
   if (!apiKey || !secretKey) {
     return null;

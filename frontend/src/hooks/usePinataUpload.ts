@@ -39,12 +39,12 @@ export function usePinataUpload() {
   );
 
   const getPinataCredentials = useCallback(() => {
-    const apiKey = process.env.NEXT_PUBLIC_PINATA_API_KEY;
-    const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET_KEY;
+    const apiKey = process.env.NEXT_PUBLIC_PINATA_API;
+    const secretKey = process.env.NEXT_PUBLIC_PINATA_SECRET;
 
     if (!apiKey || !secretKey) {
       throw new Error(
-        "Pinata credentials missing. Set NEXT_PUBLIC_PINATA_API_KEY and NEXT_PUBLIC_PINATA_SECRET_KEY."
+        "Pinata credentials missing. Set NEXT_PUBLIC_PINATA_API and NEXT_PUBLIC_PINATA_SECRET."
       );
     }
 
