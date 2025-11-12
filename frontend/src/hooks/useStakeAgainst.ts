@@ -1,0 +1,164 @@
+"use client";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePrivy } from "@privy-io/react-auth";
+import {
+  useAccount,
+  useWalletClient,
+  usePublicClient,
+  useReadContract,
+} from "wagmi";
+import { useState } from "react";
+import { Address, Hex, parseUnits, maxUint256 } from "viem";
+import { getContract, getNetworkConfig } from "@/config/contracts";
+import { predictionMarketAbi } from "@/abis/predictionMarket";
+import { foreAbi } from "@/abis/fore";
+
+export type StakeAgainstResult = {
+  hash: Hex;
+  amount: bigint;
+};
+
+export type StakeAgainstStep =
+  | "idle"
+  | "checking-allowance"
+  | "approving"
+  | "staking"
+  | "waiting"
+  | "success"
+  | "error";
+
+export function useStakeAgainst() {
+  const { ready, authenticated } = usePrivy();
+  const { address, chain } = useAccount();
+  const { data: wagmiWalletClient } = useWalletClient();
+  const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
+  const [step, setStep] = useState<StakeAgainstStep>("idle");
+  const [txHash, setTxHash] = useState<Hex | null>(null);
+
+  const network = getNetworkConfig();
+  const market = getContract("predictionMarket");
+  const foreToken = getContract("foreToken");
+
+  // Check current allowance
+  const { data: allowance, refetch: refetchAllowance } = useReadContract({
+    address: foreToken.address,
+    abi: foreAbi,
+    functionName: "allowance",
+    args: address ? [address, market.address] : undefined,
+    query: {
+      enabled: !!address,
+    },
+  });
+
+  const mutation = useMutation<
+    StakeAgainstResult,
+    Error,
+    { predictionId: number; amount: string }
+  >({
+    mutationKey: ["stake-against"],
+    mutationFn: async ({ predictionId, amount }) => {
+      if (!ready || !authenticated) {
+        throw new Error("Connect your wallet to stake.");
+      }
+      if (!address) {
+        throw new Error("Wallet address not found.");
+      }
+      if (!publicClient) {
+        throw new Error("Public client unavailable.");
+      }
+      if (chain?.id !== network.chainId) {
+        throw new Error(
+          `Wrong network. Please switch to ${network.name} (Chain ID: ${network.chainId})`
+        );
+      }
+
+      // Get wallet client inside mutation - it should be ready by now
+      const activeWalletClient = wagmiWalletClient;
+      if (!activeWalletClient) {
+        throw new Error(
+          "Wallet client unavailable. Please reconnect your wallet."
+        );
+      }
+
+      const amountWei = parseUnits(amount, 18);
+      if (amountWei <= BigInt(0)) {
+        throw new Error("Amount must be greater than zero.");
+      }
+
+      // Check and handle token approval
+      setStep("checking-allowance");
+      await refetchAllowance();
+
+      const currentAllowance = allowance ?? BigInt(0);
+      if (currentAllowance < amountWei) {
+        setStep("approving");
+        const approveHash = await activeWalletClient.writeContract({
+          address: foreToken.address,
+          abi: foreAbi,
+          functionName: "approve",
+          account: address as Address,
+          args: [market.address, maxUint256], // Approve max for better UX
+        });
+
+        await publicClient.waitForTransactionReceipt({ hash: approveHash });
+        await refetchAllowance();
+      }
+
+      // Stake AGAINST
+      setStep("staking");
+      const hash = await activeWalletClient.writeContract({
+        address: market.address,
+        abi: predictionMarketAbi,
+        functionName: "stakeAgainst",
+        account: address as Address,
+        args: [BigInt(predictionId), amountWei],
+      });
+
+      console.log("✅ Stake AGAINST transaction submitted:", hash);
+      setTxHash(hash);
+      setStep("waiting");
+
+      await publicClient.waitForTransactionReceipt({ hash });
+      console.log("✅ Stake AGAINST transaction confirmed");
+
+      // Invalidate relevant queries
+      await queryClient.invalidateQueries({
+        queryKey: ["predictions", network.chainId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["pool", predictionId],
+      });
+
+      setStep("success");
+      return { hash, amount: amountWei };
+    },
+    onError: (error: Error) => {
+      console.error("❌ Stake AGAINST error:", error);
+      setStep("error");
+    },
+  });
+
+  const reset = () => {
+    setStep("idle");
+    setTxHash(null);
+    mutation.reset();
+  };
+
+  return {
+    stakeAgainst: mutation.mutateAsync,
+    isStaking:
+      mutation.status === "pending" &&
+      (step === "staking" ||
+        step === "waiting" ||
+        step === "checking-allowance"),
+    isApproving: step === "approving",
+    isSuccess: mutation.isSuccess,
+    error: mutation.error,
+    currentStep: step,
+    transactionHash: txHash,
+    data: mutation.data,
+    reset,
+  };
+}

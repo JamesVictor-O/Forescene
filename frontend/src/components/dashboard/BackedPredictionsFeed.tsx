@@ -2,19 +2,22 @@
 
 import React from "react";
 import Image from "next/image";
-import { Clock, Users } from "lucide-react";
+import { Clock, Users, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { formatUnits } from "viem";
 
-import type { PredictionRecord } from "@/hooks/usePredictions";
+import type { BackedPrediction } from "@/hooks/useBackedPredictions";
 
-type PredictionsFeedProps = {
-  predictions: PredictionRecord[];
+type BackedPredictionsFeedProps = {
+  predictions: BackedPrediction[];
 };
 
-export default function PredictionsFeed({ predictions }: PredictionsFeedProps) {
+export default function BackedPredictionsFeed({
+  predictions,
+}: BackedPredictionsFeedProps) {
   if (!predictions.length) {
     return (
       <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-6 text-center text-sm text-zinc-500">
-        No predictions found yet.
+        You haven't staked on any predictions yet. Start backing predictions from the Feed!
       </div>
     );
   }
@@ -22,14 +25,40 @@ export default function PredictionsFeed({ predictions }: PredictionsFeedProps) {
   return (
     <div className="space-y-3 sm:space-y-4">
       {predictions.map((prediction) => (
-        <PredictionCard key={prediction.id} prediction={prediction} />
+        <BackedPredictionCard key={prediction.id} prediction={prediction} />
       ))}
     </div>
   );
 }
 
-function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
+function BackedPredictionCard({ prediction }: { prediction: BackedPrediction }) {
   const display = extractDisplayFields(prediction);
+
+  // Determine stake side badge
+  const stakeSideBadge = () => {
+    if (prediction.stakeSide === "both") {
+      return (
+        <div className="inline-flex items-center gap-1 px-3 py-1 bg-purple-500/10 border border-purple-500/40 text-purple-200 rounded-full text-[11px] font-medium">
+          <Minus className="w-3 h-3" />
+          BOTH SIDES
+        </div>
+      );
+    } else if (prediction.stakeSide === "for") {
+      return (
+        <div className="inline-flex items-center gap-1 px-3 py-1 bg-cyan-500/10 border border-cyan-500/40 text-cyan-200 rounded-full text-[11px] font-medium">
+          <TrendingUp className="w-3 h-3" />
+          STAKED FOR
+        </div>
+      );
+    } else {
+      return (
+        <div className="inline-flex items-center gap-1 px-3 py-1 bg-red-500/10 border border-red-500/40 text-red-200 rounded-full text-[11px] font-medium">
+          <TrendingDown className="w-3 h-3" />
+          STAKED AGAINST
+        </div>
+      );
+    }
+  };
 
   return (
     <div className="bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-xl hover:border-cyan-500/40 transition-all duration-300">
@@ -48,7 +77,10 @@ function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
               </div>
             </div>
           </div>
-          <StatusBadge status={prediction.status} />
+          <div className="flex items-center gap-2">
+            {stakeSideBadge()}
+            <StatusBadge status={prediction.status} />
+          </div>
         </div>
 
         {/* Content Rendering - Video, Image, or Text */}
@@ -101,46 +133,98 @@ function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
           </div>
         </div>
 
+        {/* Stake Information */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pb-4 border-b border-zinc-800/60">
-          <Stat 
-            label="Total Staked" 
-            value={prediction.formattedTotalStaked 
-              ? `${formatStakeAmount(prediction.formattedTotalStaked)} FORE`
-              : "0 FORE"
-            }
-            highlight
-          />
-          <Stat 
-            label="Staked FOR" 
-            value={prediction.formattedForPool 
-              ? `${formatStakeAmount(prediction.formattedForPool)} FORE`
-              : "0 FORE"
-            }
-          />
-          <Stat 
-            label="Staked AGAINST" 
-            value={prediction.formattedAgainstPool 
-              ? `${formatStakeAmount(prediction.formattedAgainstPool)} FORE`
-              : "0 FORE"
-            }
-          />
-          <Stat label="Copy Count" value={String(prediction.copyCount)} />
+          <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-3">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">
+              Your Total Stake
+            </div>
+            <div className="text-lg font-bold text-white">
+              {parseFloat(prediction.formattedTotalStaked).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 4,
+              })}{" "}
+              FORE
+            </div>
+            <div className="flex gap-3 mt-2 text-xs text-zinc-400">
+              {prediction.stakeFor > BigInt(0) && (
+                <span className="text-cyan-400">
+                  FOR: {parseFloat(prediction.formattedStakeFor).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })}
+                </span>
+              )}
+              {prediction.stakeAgainst > BigInt(0) && (
+                <span className="text-red-400">
+                  AGAINST: {parseFloat(prediction.formattedStakeAgainst).toLocaleString(undefined, {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 4,
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-3">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">
+              Total Pool Staked
+            </div>
+            <div className="text-lg font-bold text-cyan-400">
+              {prediction.totalStaked !== undefined
+                ? formatStakeAmount(formatUnits(prediction.totalStaked, 18))
+                : "0"}{" "}
+              FORE
+            </div>
+            <div className="flex gap-3 mt-2 text-xs text-zinc-400">
+              <span className="text-cyan-300">
+                FOR: {prediction.formattedForPool 
+                  ? formatStakeAmount(prediction.formattedForPool)
+                  : "0"}
+              </span>
+              <span className="text-red-300">
+                AGAINST: {prediction.formattedAgainstPool 
+                  ? formatStakeAmount(prediction.formattedAgainstPool)
+                  : "0"}
+              </span>
+            </div>
+          </div>
+          <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-3">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">
+              Pool Odds
+            </div>
+            <div className="text-sm sm:text-base font-semibold text-cyan-400">
+              {display.oddsFor.toFixed(2)} : {display.oddsAgainst.toFixed(2)}
+            </div>
+            <div className="text-xs text-zinc-500 mt-2">
+              Current market odds
+            </div>
+          </div>
+          <div className="bg-zinc-950/40 border border-zinc-800/60 rounded-lg p-3">
+            <div className="text-[11px] uppercase tracking-wide text-zinc-500 mb-1">
+              Backers
+            </div>
+            <div className="text-lg font-bold text-white">
+              {prediction.copyCount.toLocaleString()}
+            </div>
+            <div className="text-xs text-zinc-500 mt-2">
+              Total copies/stakes
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 pb-4 border-b border-zinc-800/60">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 pb-4 border-b border-zinc-800/60">
           <Stat label="Creator Fee" value={`${display.creatorFeeBps} bps`} />
-          <Stat
-            label="Pool Odds"
-            value={`${display.oddsFor.toFixed(
-              2
-            )} : ${display.oddsAgainst.toFixed(2)}`}
-            highlight
-          />
+          <Stat label="Copy Count" value={String(prediction.copyCount)} />
+          <Stat label="Prediction ID" value={`#${prediction.id}`} />
         </div>
 
         <div className="flex flex-wrap gap-2">
           <div className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-950/60 border border-zinc-800/70 text-xs font-semibold rounded-md">
-            ID #{prediction.id}
+            Total Staked: {parseFloat(prediction.formattedTotalStaked).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 4,
+            })}{" "}
+            FORE
           </div>
         </div>
       </div>
@@ -148,7 +232,7 @@ function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
   );
 }
 
-function StatusBadge({ status }: { status: PredictionRecord["status"] }) {
+function StatusBadge({ status }: { status: BackedPrediction["status"] }) {
   const statusClass =
     status === "ACTIVE"
       ? "bg-cyan-500/10 border border-cyan-500/40 text-cyan-200"
@@ -200,7 +284,7 @@ function formatStakeAmount(amount: string): string {
   return num.toFixed(2);
 }
 
-function extractDisplayFields(prediction: PredictionRecord) {
+function extractDisplayFields(prediction: BackedPrediction) {
   const metadata = (prediction.metadata ?? {}) as Record<string, unknown>;
   // Use title from prediction record (which includes Pinata metadata.name)
   // Fallback to textContent for text predictions, then metadata, then ID
@@ -252,3 +336,4 @@ function extractDisplayFields(prediction: PredictionRecord) {
     contentUrl: prediction.contentUrl,
   };
 }
+

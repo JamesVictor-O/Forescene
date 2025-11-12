@@ -188,9 +188,6 @@ export default function TopNav({ onOpenCreate, balance }: TopNavProps) {
             />
             <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
               <button className="px-4 py-2 bg-zinc-900/60 border border-zinc-800/70 rounded-xl text-left">
-                Discover
-              </button>
-              <button className="px-4 py-2 bg-zinc-900/60 border border-zinc-800/70 rounded-xl text-left">
                 Leaderboard
               </button>
               <button className="px-4 py-2 bg-zinc-900/60 border border-zinc-800/70 rounded-xl text-left">

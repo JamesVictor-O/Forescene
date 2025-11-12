@@ -4,7 +4,6 @@ import React, { useMemo } from "react";
 import { useWallets } from "@privy-io/react-auth";
 import {
   Home,
-  Compass,
   Trophy,
   Target,
   Users,
@@ -38,7 +37,6 @@ type NavConfig = {
 
 const NAV_ITEMS: NavConfig[] = [
   { id: "feed", icon: Home, label: "Feed" },
-  { id: "discover", icon: Compass, label: "Discover" },
   { id: "predictions", icon: Trophy, label: "My Predictions" },
   { id: "backed", icon: Target, label: "Backed" },
   { id: "squads", icon: Users, label: "Squads" },

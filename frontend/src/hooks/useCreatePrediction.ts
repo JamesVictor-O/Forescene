@@ -456,12 +456,20 @@ export function useCreatePrediction() {
 
           cid = metadataUpload.cid;
         } else {
+          // If no title provided, use first line of textContent as title
+          const textContent = input.textContent ?? "";
+          const firstLine = textContent.split("\n")[0]?.trim() || "";
+          const effectiveTitle =
+            input.title?.trim() ||
+            firstLine ||
+            "Prediction";
+          
           const metadataPayload = {
             version: "forescene-prediction-v1",
             format: "text",
-            title: input.title ?? "Prediction",
+            title: effectiveTitle,
             summary: input.summary ?? "",
-            content: input.textContent ?? "",
+            content: textContent,
             category,
             creator: address,
             createdAt: new Date().toISOString(),
@@ -471,7 +479,7 @@ export function useCreatePrediction() {
             `${category}-prediction-${Date.now()}.json`,
             {
               metadata: {
-                name: input.title ?? "prediction-text",
+                name: effectiveTitle,
                 keyvalues: {
                   category,
                   author: address,

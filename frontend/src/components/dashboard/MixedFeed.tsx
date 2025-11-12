@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -14,17 +14,15 @@ import {
   Loader2,
 } from "lucide-react";
 import Image from "next/image";
-import { useWallets, usePrivy } from "@privy-io/react-auth";
-import { parseUnits } from "viem";
-import {
-  predictionMarketAbi,
-  type PredictionMarketFunction,
-} from "@/abis/predictionMarket";
-import { getContract } from "@/config/contracts";
+import { usePrivy } from "@privy-io/react-auth";
+import LoadingSkeleton from "@/components/dashboard/LoadingSkeleton";
 import {
   useAllPredictions,
   type PredictionRecord,
 } from "@/hooks/usePredictions";
+import { useStakeFor } from "@/hooks/useStakeFor";
+import { useStakeAgainst } from "@/hooks/useStakeAgainst";
+import { useCopyPrediction } from "@/hooks/useCopyPrediction";
 
 type FeedMediaType = "video" | "image" | "text";
 
@@ -44,12 +42,18 @@ type FeedItem = {
     verified: boolean;
   };
   prediction: string;
-  summary?: string;
   category: string;
   thumbnail: "crypto-bg" | "sports-bg" | "tech-bg";
   confidence: number;
   currentOdds: { for: number; against: number };
-  stats: { backers: number; staked: string; comments: number; shares: number };
+  stats: {
+    backers: number;
+    staked: string;
+    stakedFor: string;
+    stakedAgainst: string;
+    comments: number;
+    shares: number;
+  };
   deadline: string;
   timeLeft: string;
   isHot: boolean;
@@ -58,175 +62,118 @@ type FeedItem = {
   contentUrl?: string;
 };
 
-const DEFAULT_FEED_ITEMS: FeedItem[] = [
-  {
-    id: 1,
-    format: "video",
-    mediaType: "video",
-    mediaUrl: "",
-    user: {
-      name: "CryptoSage",
-      avatar: "CS",
-      prophetScore: 1250,
-      accuracy: 92,
-      verified: true,
-    },
-    prediction: "Bitcoin will hit $100K before December 31st, 2025",
-    category: "crypto",
-    thumbnail: "crypto-bg",
-    confidence: 85,
-    currentOdds: { for: 2.3, against: 1.4 },
-    stats: { backers: 1234, staked: "45.2K", comments: 89, shares: 234 },
-    deadline: "2025-12-31",
-    timeLeft: "42d 15h",
-    isHot: true,
-    copyCount: 150,
-    recommendedStake: 100,
-  },
-  {
-    id: 2,
-    format: "text",
-    mediaType: "text",
-    user: {
-      name: "SportsOracle",
-      avatar: "SO",
-      prophetScore: 980,
-      accuracy: 88,
-      verified: true,
-    },
-    prediction: "Lakers will win the 2025 NBA Championship",
-    category: "sports",
-    thumbnail: "sports-bg",
-    confidence: 78,
-    currentOdds: { for: 3.1, against: 1.2 },
-    stats: { backers: 892, staked: "32.8K", comments: 156, shares: 421 },
-    deadline: "2025-06-15",
-    timeLeft: "7mo 9d",
-    isHot: false,
-    copyCount: 80,
-    recommendedStake: 50,
-  },
-  {
-    id: 3,
-    format: "video",
-    mediaType: "video",
-    mediaUrl: "",
-    user: {
-      name: "TechVision",
-      avatar: "TV",
-      prophetScore: 1100,
-      accuracy: 85,
-      verified: false,
-    },
-    prediction: "Apple will announce AR glasses at WWDC 2025",
-    category: "tech",
-    thumbnail: "tech-bg",
-    confidence: 72,
-    currentOdds: { for: 1.8, against: 1.6 },
-    stats: { backers: 2103, staked: "67.5K", comments: 312, shares: 189 },
-    deadline: "2025-06-09",
-    timeLeft: "7mo 3d",
-    isHot: true,
-    copyCount: 120,
-    recommendedStake: 80,
-  },
-  {
-    id: 4,
-    format: "text",
-    mediaType: "text",
-    user: {
-      name: "MarketMaven",
-      avatar: "MM",
-      prophetScore: 845,
-      accuracy: 81,
-      verified: false,
-    },
-    prediction: "ETH flips $5K by Q1 2025, driven by ETF inflows",
-    category: "crypto",
-    thumbnail: "crypto-bg",
-    confidence: 69,
-    currentOdds: { for: 2.0, against: 1.7 },
-    stats: { backers: 512, staked: "12.1K", comments: 48, shares: 96 },
-    deadline: "2025-03-31",
-    timeLeft: "78d 3h",
-    isHot: false,
-    copyCount: 70,
-    recommendedStake: 40,
-  },
-];
-
 export default function MixedFeed() {
-  const [feedItems, setFeedItems] = useState<FeedItem[]>(DEFAULT_FEED_ITEMS);
   const [stakeForItemId, setStakeForItemId] = useState<null | {
     id: number;
     type: "for" | "against" | "copy";
   }>(null);
   const [stakeAmount, setStakeAmount] = useState("");
-  const [isProcessing, setIsProcessing] = useState(false);
   const [txStatus, setTxStatus] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
 
-  const { wallets } = useWallets();
   const { ready, authenticated } = usePrivy();
-  const { address: predictionMarketAddress } = getContract("predictionMarket");
   const { data: chainPredictions, isLoading: isPredictionsLoading } =
     useAllPredictions();
 
-  type PrivyWalletWithClient = {
-    walletClient?: {
-      writeContract: (args: {
-        address: `0x${string}`;
-        abi: typeof predictionMarketAbi;
-        functionName: PredictionMarketFunction;
-        account: `0x${string}`;
-        args: [bigint, bigint];
-      }) => Promise<string>;
-    };
-  };
+  // Use the new hooks for staking
+  const {
+    stakeFor,
+    isStaking: isStakingFor,
+    isApproving: isApprovingFor,
+    error: stakeForError,
+    currentStep: stakeForStep,
+    reset: resetStakeFor,
+  } = useStakeFor();
 
-  const primaryWallet = wallets[0] as (typeof wallets)[number] &
-    PrivyWalletWithClient;
-  const walletClient = primaryWallet?.walletClient;
-  const account = primaryWallet?.address as `0x${string}` | undefined;
+  const {
+    stakeAgainst,
+    isStaking: isStakingAgainst,
+    isApproving: isApprovingAgainst,
+    error: stakeAgainstError,
+    currentStep: stakeAgainstStep,
+    reset: resetStakeAgainst,
+  } = useStakeAgainst();
+
+  const {
+    copyPrediction,
+    isCopying,
+    isApproving: isApprovingCopy,
+    error: copyError,
+    currentStep: copyStep,
+    reset: resetCopy,
+  } = useCopyPrediction();
+
+  // Determine processing state from hooks
+  const isProcessing =
+    isStakingFor ||
+    isStakingAgainst ||
+    isCopying ||
+    isApprovingFor ||
+    isApprovingAgainst ||
+    isApprovingCopy;
+
+  // Get error from appropriate hook
+  const currentError = stakeForError || stakeAgainstError || copyError || null;
 
   const quickAmounts = useMemo(() => [10, 25, 50, 100], []);
-  const shortenAddress = (addr: string) =>
-    `${addr.slice(0, 6)}…${addr.slice(-4)}`;
+  const shortenAddress = useCallback(
+    (addr: string) => `${addr.slice(0, 6)}…${addr.slice(-4)}`,
+    []
+  );
 
+  // Track current time as state - updates every minute to refresh expired predictions
+  const [currentTime, setCurrentTime] = useState(() =>
+    Math.floor(Date.now() / 1000)
+  );
+
+  // Update the time periodically (every 60 seconds) to keep deadline checks accurate
   useEffect(() => {
-    if (chainPredictions && chainPredictions.length > 0) {
-      setFeedItems(
-        chainPredictions.map((prediction) =>
-          mapPredictionToFeedItem(prediction, shortenAddress)
-        )
-      );
-    } else if (!isPredictionsLoading) {
-      setFeedItems(DEFAULT_FEED_ITEMS);
+    const interval = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Use useMemo instead of useEffect + setState to avoid cascading renders
+  const baseFeedItems = useMemo(() => {
+    const predictions = Array.isArray(chainPredictions) ? chainPredictions : [];
+
+    if (predictions.length === 0) {
+      return isPredictionsLoading ? [] : [];
     }
-  }, [chainPredictions, isPredictionsLoading]);
 
-  const createReshareItem = (source: FeedItem): FeedItem => {
-    const timestampId = Date.now();
-    const label = account ? `You (${shortenAddress(account)})` : "You";
+    const nowSeconds = currentTime;
+    const activePredictions = predictions.filter(
+      (prediction: PredictionRecord) =>
+        prediction.isActive &&
+        prediction.status === "ACTIVE" &&
+        prediction.deadline > nowSeconds
+    );
 
-    return {
-      ...source,
-      id: timestampId,
-      user: {
-        name: label,
-        avatar: "YOU",
-        prophetScore: source.user.prophetScore,
-        accuracy: source.user.accuracy,
-        verified: false,
-      },
-      stats: {
-        ...source.stats,
-        shares: source.stats.shares + 1,
-      },
-      timeLeft: source.timeLeft,
-      copyCount: source.copyCount,
-    };
-  };
+    return activePredictions.map((prediction: PredictionRecord) =>
+      mapPredictionToFeedItem(prediction, shortenAddress)
+    );
+  }, [chainPredictions, isPredictionsLoading, shortenAddress, currentTime]);
+
+  // Separate state for optimistic UI updates (like copy/reshare)
+  const [optimisticUpdates, setOptimisticUpdates] = useState<
+    Map<number, FeedItem>
+  >(new Map());
+
+  // Merge base feed items with optimistic updates
+  const feedItems = useMemo(() => {
+    if (optimisticUpdates.size === 0) {
+      return baseFeedItems;
+    }
+
+    // Apply optimistic updates
+    const updated = baseFeedItems.map((item) => {
+      const optimistic = optimisticUpdates.get(item.id);
+      return optimistic ? { ...item, ...optimistic } : item;
+    });
+
+    return updated;
+  }, [baseFeedItems, optimisticUpdates]);
 
   const active = useMemo(() => {
     if (!stakeForItemId) return null;
@@ -258,64 +205,53 @@ export default function MixedFeed() {
       return;
     }
 
-    if (!walletClient || !predictionMarketAddress || !account) {
-      setTxError("Wallet client not ready");
-      return;
-    }
-
     try {
-      setIsProcessing(true);
       setTxError(null);
+      setTxStatus(null);
 
-      const parsedAmount = parseUnits(stakeAmount, 18);
-      const predictionId = BigInt(stakeForItemId.id);
+      const predictionId = stakeForItemId.id;
+      let result;
 
-      const functionName =
-        stakeForItemId.type === "copy"
-          ? "copyPrediction"
-          : stakeForItemId.type === "for"
-          ? "stakeFor"
-          : "stakeAgainst";
+      if (stakeForItemId.type === "for") {
+        result = await stakeFor({ predictionId, amount: stakeAmount });
+        setTxStatus(`Transaction sent: ${result.hash}`);
+      } else if (stakeForItemId.type === "against") {
+        result = await stakeAgainst({ predictionId, amount: stakeAmount });
+        setTxStatus(`Transaction sent: ${result.hash}`);
+      } else if (stakeForItemId.type === "copy") {
+        result = await copyPrediction({ predictionId, amount: stakeAmount });
+        setTxStatus(`Transaction sent: ${result.hash}`);
 
-      const hash = await walletClient.writeContract({
-        address: predictionMarketAddress,
-        abi: predictionMarketAbi,
-        functionName,
-        account,
-        args: [predictionId, parsedAmount],
-      });
-
-      setTxStatus(`Transaction sent: ${hash}`);
-
-      if (stakeForItemId.type === "copy") {
-        setFeedItems((prev) => {
-          const base = prev.find((item) => item.id === stakeForItemId.id);
-          if (!base) return prev;
-
-          const updatedBase: FeedItem = {
-            ...base,
-            copyCount: base.copyCount + 1,
-            stats: {
-              ...base.stats,
-              backers: base.stats.backers + 1,
-            },
-          };
-
-          const reshareCard = createReshareItem(updatedBase);
-          const remaining = prev.filter(
-            (item) => item.id !== stakeForItemId.id
-          );
-          return [reshareCard, updatedBase, ...remaining];
-        });
+        // Optimistic UI update for copy - the query will refresh automatically
+        const base = feedItems.find((item) => item.id === stakeForItemId.id);
+        if (base) {
+          setOptimisticUpdates((prev) => {
+            const updated = new Map(prev);
+            updated.set(base.id, {
+              ...base,
+              copyCount: base.copyCount + 1,
+              stats: {
+                ...base.stats,
+                backers: base.stats.backers + 1,
+              },
+            });
+            return updated;
+          });
+        }
       }
 
-      setStakeForItemId(null);
-      setStakeAmount("");
+      // Close modal on success
+      setTimeout(() => {
+        setStakeForItemId(null);
+        setStakeAmount("");
+        setTxStatus(null);
+        resetStakeFor();
+        resetStakeAgainst();
+        resetCopy();
+      }, 2000);
     } catch (error) {
       const message = (error as Error).message || "Transaction failed";
       setTxError(message);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -351,6 +287,29 @@ export default function MixedFeed() {
       : stakeForItemId?.type === "for"
       ? "I believe this prediction will come true"
       : "I doubt this prediction will happen";
+
+  if (isPredictionsLoading && feedItems.length === 0) {
+    return (
+      <div className="w-full max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4">
+        <LoadingSkeleton message="Loading the freshest predictions…" />
+      </div>
+    );
+  }
+
+  if (!isPredictionsLoading && feedItems.length === 0) {
+    return (
+      <div className="w-full max-w-4xl xl:max-w-5xl mx-auto px-3 sm:px-4">
+        <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-10 text-center">
+          <h3 className="text-lg font-semibold text-white mb-2">
+            No predictions yet
+          </h3>
+          <p className="text-sm text-zinc-500">
+            Be the first to create a prediction on Forescene.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-4xl xl:max-w-5xl mx-auto">
@@ -494,9 +453,21 @@ export default function MixedFeed() {
                   {txStatus}
                 </p>
               )}
-              {txError && (
+              {(txError || currentError) && (
                 <p className="text-[11px] sm:text-xs text-red-400 mt-2">
-                  {txError}
+                  {txError || currentError?.message || "Transaction failed"}
+                </p>
+              )}
+              {(isApprovingFor || isApprovingAgainst || isApprovingCopy) && (
+                <p className="text-[11px] sm:text-xs text-yellow-400 mt-2">
+                  Approving tokens... Please confirm in your wallet.
+                </p>
+              )}
+              {(stakeForStep === "waiting" ||
+                stakeAgainstStep === "waiting" ||
+                copyStep === "waiting") && (
+                <p className="text-[11px] sm:text-xs text-cyan-400 mt-2">
+                  Waiting for blockchain confirmation...
                 </p>
               )}
             </div>
@@ -512,13 +483,20 @@ function mapPredictionToFeedItem(
   shortenAddress: (address: string) => string
 ): FeedItem {
   const metadata = (prediction.metadata ?? {}) as Record<string, unknown>;
+  // Use title from prediction record (which includes Pinata metadata.name)
+  // Fallback to textContent for text predictions, then metadata, then ID
   const title =
-    typeof prediction.title === "string"
-      ? prediction.title
-      : typeof metadata.title === "string"
-      ? metadata.title
-      : typeof metadata.content === "string"
-      ? metadata.content
+    typeof prediction.title === "string" && prediction.title.trim()
+      ? prediction.title.trim()
+      : typeof prediction.textContent === "string" &&
+        prediction.textContent.trim()
+      ? prediction.textContent.split("\n")[0].trim().slice(0, 100)
+      : typeof metadata.title === "string" && metadata.title.trim()
+      ? metadata.title.trim()
+      : typeof metadata.name === "string" && metadata.name.trim()
+      ? metadata.name.trim()
+      : typeof metadata.content === "string" && metadata.content.trim()
+      ? metadata.content.trim().slice(0, 100)
       : `Prediction #${prediction.id}`;
   const summary =
     typeof prediction.summary === "string"
@@ -570,7 +548,6 @@ function mapPredictionToFeedItem(
     mediaType,
     mediaUrl,
     textContent,
-    summary,
     user: {
       name: shortenAddress(prediction.creator),
       avatar: prediction.creator.slice(2, 4).toUpperCase(),
@@ -586,7 +563,15 @@ function mapPredictionToFeedItem(
     currentOdds: odds,
     stats: {
       backers: prediction.copyCount,
-      staked: "0",
+      staked: prediction.formattedTotalStaked
+        ? formatStakeAmount(prediction.formattedTotalStaked)
+        : "0",
+      stakedFor: prediction.formattedForPool
+        ? formatStakeAmount(prediction.formattedForPool)
+        : "0",
+      stakedAgainst: prediction.formattedAgainstPool
+        ? formatStakeAmount(prediction.formattedAgainstPool)
+        : "0",
       comments: 0,
       shares: 0,
     },
@@ -605,6 +590,16 @@ function determineThumbnail(category: string): FeedItem["thumbnail"] {
   if (normalized.includes("tech") || normalized.includes("ai"))
     return "tech-bg";
   return "crypto-bg";
+}
+
+function formatStakeAmount(amount: string): string {
+  const num = parseFloat(amount);
+  if (num === 0) return "0";
+  if (num < 0.01) return "< 0.01";
+  if (num >= 1000) {
+    return `${(num / 1000).toFixed(1)}K`;
+  }
+  return num.toFixed(2);
 }
 
 function FeedCard({
@@ -706,11 +701,11 @@ function FeedCard({
           <p className="text-base sm:text-lg md:text-xl font-bold leading-tight text-white">
             {item.prediction}
           </p>
-          {item.summary && (
+          {/* {item.summary && (
             <p className="mt-1 text-xs sm:text-sm text-zinc-400">
               {item.summary}
             </p>
-          )}
+          )} */}
           {item.mediaType === "text" && item.textContent && (
             <p className="mt-2 text-sm sm:text-base text-zinc-300 whitespace-pre-wrap">
               {item.textContent}
@@ -731,13 +726,29 @@ function FeedCard({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
           <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
             <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
-              Staked
+              Total Staked
             </div>
-            <div className="font-bold text-xs sm:text-sm md:text-base">
-              ${item.stats.staked}
+            <div className="font-bold text-xs sm:text-sm md:text-base text-cyan-400">
+              {item.stats.staked} FORE
+            </div>
+          </div>
+          <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
+            <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
+              Staked FOR
+            </div>
+            <div className="font-bold text-xs sm:text-sm md:text-base text-cyan-300">
+              {item.stats.stakedFor} FORE
+            </div>
+          </div>
+          <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
+            <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
+              Staked AGAINST
+            </div>
+            <div className="font-bold text-xs sm:text-sm md:text-base text-red-300">
+              {item.stats.stakedAgainst} FORE
             </div>
           </div>
           <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
@@ -746,14 +757,6 @@ function FeedCard({
             </div>
             <div className="font-bold text-xs sm:text-sm md:text-base">
               {item.stats.backers.toLocaleString()}
-            </div>
-          </div>
-          <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
-            <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
-              Comments
-            </div>
-            <div className="font-bold text-xs sm:text-sm md:text-base">
-              {item.stats.comments}
             </div>
           </div>
         </div>
