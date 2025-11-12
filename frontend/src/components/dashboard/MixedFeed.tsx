@@ -773,10 +773,7 @@ function FeedCard({
             Signal Strength +{item.copyCount >= 100 ? 12 : 6}%
           </span>
         </div>
-
-        {/* Action Buttons */}
         <div className="flex gap-2 sm:gap-3">
-          {/* Copy Button */}
           <button
             onClick={() => onCopy(item)}
             className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 sm:py-2.5 bg-cyan-500/20 border border-cyan-500/30 text-cyan-200 font-semibold text-xs sm:text-sm hover:bg-cyan-500/30 hover:border-cyan-500/40 transition-all rounded-sm flex items-center justify-center gap-1.5 sm:gap-2"
@@ -784,8 +781,6 @@ function FeedCard({
             <CopyIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span>Reshare</span>
           </button>
-
-          {/* Believe/For Button */}
           <button
             onClick={() => onStake(item.id, "for")}
             className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-semibold text-xs sm:text-sm hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all rounded-sm flex items-center justify-center gap-1.5 sm:gap-2"
@@ -793,8 +788,6 @@ function FeedCard({
             <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">Believe</span>
           </button>
-
-          {/* Doubt/Against Button */}
           <button
             onClick={() => onStake(item.id, "against")}
             className="flex-1 sm:flex-initial px-3 sm:px-4 py-2 sm:py-2.5 bg-zinc-950/50 border border-zinc-800/50 font-semibold text-xs sm:text-sm hover:border-cyan-500/50 transition-all rounded-sm flex items-center justify-center gap-1.5 sm:gap-2"
@@ -802,8 +795,7 @@ function FeedCard({
             <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">Doubt</span>
           </button>
-
-          {/* Comment Button */}
+          
           <button className="px-3 sm:px-4 py-2 sm:py-2.5 bg-zinc-950/50 border border-zinc-800/50 text-xs sm:text-sm hover:border-cyan-500/50 transition-all rounded-sm flex items-center justify-center">
             <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>
