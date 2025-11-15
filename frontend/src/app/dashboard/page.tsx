@@ -69,8 +69,6 @@ export default function Dashboard() {
     }
 
     const totalPredictions = userPredictions.length;
-    // Count resolved predictions (for now, we'll count all resolved as "correct")
-    // In the future, we'd need to check the actual outcome to determine if they won
     const resolvedPredictions = userPredictions.filter(
       (p) => p.status === "RESOLVED"
     );
@@ -82,15 +80,10 @@ export default function Dashboard() {
         ? Math.round((correctPredictions / totalPredictions) * 100)
         : 0;
 
-    // For earnings, we'd need to query actual staking rewards from the contract
-    // For now, we'll show 0 as earnings calculation requires contract interaction
     const earnings = 0;
 
     // Format earnings with commas for display (as string)
     const formattedEarnings = earnings.toLocaleString();
-
-    // Prophet score calculation would also require contract data
-    // For now, we'll use a simple calculation based on predictions
     const prophetScore = totalPredictions * 10 + correctPredictions * 50;
 
     return {

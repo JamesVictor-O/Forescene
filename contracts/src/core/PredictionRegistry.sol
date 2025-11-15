@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {IPredictionRegistry} from "../interfaces/IPredictionRegistry.sol";
+import {IPredictionMarket} from "../interfaces/IPredictionMarket.sol";
 
 /**
  * @title PredictionRegistry
@@ -60,6 +61,7 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
      * @param category Category string (e.g., "crypto", "sports")
      * @param deadline Unix timestamp when prediction resolves
      * @param creatorFeeBps Creator fee in basis points (0-10000)
+     * @param creatorStake Amount of tokens creator is staking (must be > 0)
      * @return predictionId The ID of the created prediction
      */
     function createPrediction(
@@ -67,10 +69,12 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
         Format format,
         string memory category,
         uint256 deadline,
-        uint16 creatorFeeBps
+        uint16 creatorFeeBps,
+        uint256 creatorStake
     ) external override nonReentrant returns (uint256) {
         if (deadline <= block.timestamp) revert InvalidDeadline();
         if (creatorFeeBps > 10000) revert InvalidFee();
+        if (creatorStake == 0) revert InvalidFee(); // Reuse InvalidFee error for stake validation
 
         uint256 predictionId = _nextPredictionId++;
 
@@ -86,6 +90,11 @@ contract PredictionRegistry is IPredictionRegistry, Ownable, ReentrancyGuard {
             isActive: true,
             creatorFeeBps: creatorFeeBps == 0 ? defaultFeeBps : creatorFeeBps
         });
+
+        // Initialize pool with creator's stake
+        if (market != address(0)) {
+            IPredictionMarket(market).initializePoolWithCreatorStake(predictionId, creatorStake, msg.sender);
+        }
 
         emit PredictionCreated(predictionId, msg.sender, contentCID, format, category, deadline);
 

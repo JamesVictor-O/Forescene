@@ -28,9 +28,6 @@ export default function Providers({ children }: ProvidersProps) {
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const rpcUrl = foresceneBscTestnet.rpcUrls.default.http[0];
 
-  console.log("🔧 CONFIG CHECK:");
-  console.log("- RPC URL:", rpcUrl);
-  console.log("- Chain ID:", foresceneBscTestnet.id);
 
   const wagmiConfig = useMemo(
     () =>
@@ -70,7 +67,9 @@ export default function Providers({ children }: ProvidersProps) {
       }}
     >
       <QueryClientProvider client={queryClient}>
-        <WagmiProvider config={wagmiConfig}>{children}</WagmiProvider>
+        <WagmiProvider config={wagmiConfig}>
+          {children}
+        </WagmiProvider>
       </QueryClientProvider>
     </PrivyProvider>
   );

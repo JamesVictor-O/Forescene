@@ -49,7 +49,8 @@ interface IPredictionRegistry {
         Format format,
         string memory category,
         uint256 deadline,
-        uint16 creatorFeeBps
+        uint16 creatorFeeBps,
+        uint256 creatorStake
     ) external returns (uint256);
 
     function lockPrediction(uint256 predictionId) external;

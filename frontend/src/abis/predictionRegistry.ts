@@ -44,6 +44,11 @@ export const predictionRegistryAbi = [
         type: "uint16",
         internalType: "uint16",
       },
+      {
+        name: "creatorStake",
+        type: "uint256",
+        internalType: "uint256",
+      },
     ],
     outputs: [
       {

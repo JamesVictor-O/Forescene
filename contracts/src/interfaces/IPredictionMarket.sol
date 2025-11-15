@@ -50,5 +50,9 @@ interface IPredictionMarket {
     function getPosition(uint256 predictionId, address user) external view returns (Position memory);
 
     function getPool(uint256 predictionId) external view returns (Pool memory);
+
+    function initializePoolWithCreatorStake(uint256 predictionId, uint256 creatorStake, address creator) external;
+
+    function getCreatorStake(uint256 predictionId) external view returns (uint256);
 }
 

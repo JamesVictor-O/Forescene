@@ -136,6 +136,25 @@ export const predictionMarketAbi = [
   },
   {
     type: "function",
+    name: "getCreatorStake",
+    inputs: [
+      {
+        name: "predictionId",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    outputs: [
+      {
+        name: "",
+        type: "uint256",
+        internalType: "uint256",
+      },
+    ],
+    stateMutability: "view",
+  },
+  {
+    type: "function",
     name: "getPosition",
     inputs: [
       {

@@ -101,27 +101,38 @@ function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4 pb-4 border-b border-zinc-800/60">
-          <Stat 
-            label="Total Staked" 
-            value={prediction.formattedTotalStaked 
-              ? `${formatStakeAmount(prediction.formattedTotalStaked)} FORE`
-              : "0 FORE"
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-4 pb-4 border-b border-zinc-800/60">
+          <Stat
+            label="Creator Stake"
+            value={
+              prediction.formattedCreatorStake
+                ? `${formatStakeAmount(prediction.formattedCreatorStake)} FORE`
+                : "0 FORE"
             }
             highlight
           />
-          <Stat 
-            label="Staked FOR" 
-            value={prediction.formattedForPool 
-              ? `${formatStakeAmount(prediction.formattedForPool)} FORE`
-              : "0 FORE"
+          <Stat
+            label="Total Staked"
+            value={
+              prediction.formattedTotalStaked
+                ? `${formatStakeAmount(prediction.formattedTotalStaked)} FORE`
+                : "0 FORE"
             }
           />
-          <Stat 
-            label="Staked AGAINST" 
-            value={prediction.formattedAgainstPool 
-              ? `${formatStakeAmount(prediction.formattedAgainstPool)} FORE`
-              : "0 FORE"
+          <Stat
+            label="Staked FOR"
+            value={
+              prediction.formattedForPool
+                ? `${formatStakeAmount(prediction.formattedForPool)} FORE`
+                : "0 FORE"
+            }
+          />
+          <Stat
+            label="Staked AGAINST"
+            value={
+              prediction.formattedAgainstPool
+                ? `${formatStakeAmount(prediction.formattedAgainstPool)} FORE`
+                : "0 FORE"
             }
           />
           <Stat label="Copy Count" value={String(prediction.copyCount)} />
@@ -136,12 +147,6 @@ function PredictionCard({ prediction }: { prediction: PredictionRecord }) {
             )} : ${display.oddsAgainst.toFixed(2)}`}
             highlight
           />
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <div className="inline-flex items-center gap-2 px-3 py-2 bg-zinc-950/60 border border-zinc-800/70 text-xs font-semibold rounded-md">
-            ID #{prediction.id}
-          </div>
         </div>
       </div>
     </div>
@@ -207,7 +212,8 @@ function extractDisplayFields(prediction: PredictionRecord) {
   const title =
     typeof prediction.title === "string" && prediction.title.trim()
       ? prediction.title.trim()
-      : typeof prediction.textContent === "string" && prediction.textContent.trim()
+      : typeof prediction.textContent === "string" &&
+        prediction.textContent.trim()
       ? prediction.textContent.split("\n")[0].trim().slice(0, 100)
       : typeof metadata.title === "string" && metadata.title.trim()
       ? metadata.title.trim()

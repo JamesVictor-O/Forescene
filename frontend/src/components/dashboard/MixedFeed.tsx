@@ -16,6 +16,7 @@ import {
 import Image from "next/image";
 import { usePrivy } from "@privy-io/react-auth";
 import LoadingSkeleton from "@/components/dashboard/LoadingSkeleton";
+import CopyAddress from "@/components/shared/CopyAddress";
 import {
   useAllPredictions,
   type PredictionRecord,
@@ -41,6 +42,7 @@ type FeedItem = {
     accuracy: number;
     verified: boolean;
   };
+  creatorAddress: string;
   prediction: string;
   category: string;
   thumbnail: "crypto-bg" | "sports-bg" | "tech-bg";
@@ -51,6 +53,7 @@ type FeedItem = {
     staked: string;
     stakedFor: string;
     stakedAgainst: string;
+    creatorStake: string;
     comments: number;
     shares: number;
   };
@@ -555,6 +558,7 @@ function mapPredictionToFeedItem(
       accuracy: 0,
       verified: false,
     },
+    creatorAddress: prediction.creator,
     prediction: title,
     summary,
     category: prediction.category,
@@ -571,6 +575,9 @@ function mapPredictionToFeedItem(
         : "0",
       stakedAgainst: prediction.formattedAgainstPool
         ? formatStakeAmount(prediction.formattedAgainstPool)
+        : "0",
+      creatorStake: prediction.formattedCreatorStake
+        ? formatStakeAmount(prediction.formattedCreatorStake)
         : "0",
       comments: 0,
       shares: 0,
@@ -625,7 +632,11 @@ function FeedCard({
             {/* User Info */}
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-sm sm:text-base flex items-center gap-1.5">
-                <span className="truncate">{item.user.name}</span>
+                <CopyAddress
+                  address={item.creatorAddress}
+                  className="truncate text-white hover:text-cyan-400"
+                  iconSize="sm"
+                />
                 {item.user.verified && (
                   <span className="inline-flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 bg-cyan-500/20 border border-cyan-500/30 rounded-sm shrink-0">
                     <Award className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-cyan-400" />
@@ -726,7 +737,15 @@ function FeedCard({
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-3 sm:mb-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-3 sm:mb-4">
+          <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
+            <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
+              Creator Stake
+            </div>
+            <div className="font-bold text-xs sm:text-sm md:text-base text-yellow-400">
+              {item.stats.creatorStake} FORE
+            </div>
+          </div>
           <div className="bg-zinc-950/50 border border-zinc-800/50 p-2 sm:p-3 rounded-sm">
             <div className="text-[10px] sm:text-xs text-zinc-500 mb-0.5 sm:mb-1">
               Total Staked
@@ -795,7 +814,7 @@ function FeedCard({
             <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden xs:inline sm:inline">Doubt</span>
           </button>
-          
+
           <button className="px-3 sm:px-4 py-2 sm:py-2.5 bg-zinc-950/50 border border-zinc-800/50 text-xs sm:text-sm hover:border-cyan-500/50 transition-all rounded-sm flex items-center justify-center">
             <MessageCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
           </button>

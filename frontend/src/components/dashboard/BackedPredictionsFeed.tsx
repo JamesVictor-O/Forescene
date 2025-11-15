@@ -17,7 +17,7 @@ export default function BackedPredictionsFeed({
   if (!predictions.length) {
     return (
       <div className="bg-zinc-900/40 border border-zinc-800/60 rounded-xl p-6 text-center text-sm text-zinc-500">
-        You haven't staked on any predictions yet. Start backing predictions from the Feed!
+        You haven&apos;t staked on any predictions yet. Start backing predictions from the Feed!
       </div>
     );
   }
