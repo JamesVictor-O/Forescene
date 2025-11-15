@@ -69,12 +69,12 @@ contract ResolutionOracleTest is Test {
         internal
         returns (uint256 predictionId, IPredictionRegistry.Prediction memory pred)
     {
-        vm.prank(user);
+        vm.startPrank(user);
         token.approve(address(market), 200 * 1e18);
-        vm.prank(user);
         predictionId = registry.createPrediction(
-            "QmOracle", IPredictionRegistry.Format.TEXT, "macro", block.timestamp + 3 days, 0
+            "QmOracle", IPredictionRegistry.Format.TEXT, "macro", block.timestamp + 3 days, 0, 100 * 1e18
         );
+        vm.stopPrank();
 
         vm.prank(user);
         market.stakeFor(predictionId, 200 * 1e18);

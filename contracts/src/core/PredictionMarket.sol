@@ -30,6 +30,7 @@ contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
     mapping(uint256 => mapping(address => Position)) private _positions;
     mapping(uint256 => bool) private _resolved; // Track if prediction is resolved
     mapping(uint256 => Side) private _outcomes; // Final outcome (FOR or AGAINST)
+    mapping(uint256 => uint256) private _creatorStakes; // Track creator's initial stake
 
     // Quick stake presets
     uint256[4] public presetAmounts = [10 * 1e18, 25 * 1e18, 50 * 1e18, 100 * 1e18];
@@ -56,6 +57,11 @@ contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
         IPredictionRegistry.Prediction memory pred = registry.getPrediction(predictionId);
         if (pred.id == 0) revert PredictionNotFound();
         if (registry.isLocked(predictionId)) revert PredictionLocked();
+        _;
+    }
+
+    modifier onlyRegistry() {
+        if (msg.sender != address(registry)) revert Unauthorized();
         _;
     }
 
@@ -203,6 +209,41 @@ contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
     }
 
     /**
+     * @notice Initialize pool with creator's stake (called by registry)
+     * @param predictionId The prediction ID
+     * @param creatorStake Amount of tokens creator is staking
+     * @param creator Creator address
+     */
+    function initializePoolWithCreatorStake(uint256 predictionId, uint256 creatorStake, address creator)
+        external
+        override
+        nonReentrant
+        onlyRegistry
+    {
+        if (creatorStake == 0) revert InvalidAmount();
+
+        IPredictionRegistry.Prediction memory pred = registry.getPrediction(predictionId);
+        if (pred.id == 0) revert PredictionNotFound();
+
+        // Transfer tokens from creator to this contract
+        token.safeTransferFrom(creator, address(this), creatorStake);
+
+        // Initialize pool with creator's stake on FOR side
+        Pool storage pool = _pools[predictionId];
+        pool.forPool += creatorStake;
+        pool.totalStaked += creatorStake;
+        pool.feeBps = pred.creatorFeeBps;
+
+        // Record creator's position
+        _positions[predictionId][creator].forAmount += creatorStake;
+
+        // Store creator's initial stake
+        _creatorStakes[predictionId] = creatorStake;
+
+        emit StakePlaced(predictionId, creator, Side.FOR, creatorStake, PRECISION);
+    }
+
+    /**
      * @notice Add liquidity to a pool
      * @param predictionId The prediction ID
      * @param amount Amount to add
@@ -315,6 +356,15 @@ contract PredictionMarket is IPredictionMarket, TokenRescuer, ReentrancyGuard {
      */
     function getPool(uint256 predictionId) external view override returns (Pool memory) {
         return _pools[predictionId];
+    }
+
+    /**
+     * @notice Get creator's initial stake for a prediction
+     * @param predictionId The prediction ID
+     * @return uint256 Creator's initial stake amount
+     */
+    function getCreatorStake(uint256 predictionId) external view returns (uint256) {
+        return _creatorStakes[predictionId];
     }
 
     /**

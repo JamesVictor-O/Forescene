@@ -5,14 +5,14 @@ import {
   Trophy,
   Medal,
   Award,
-  TrendingUp,
   DollarSign,
   Target,
 } from "lucide-react";
 import { useAccount } from "wagmi";
-import { Address } from "viem";
+
 
 import { useLeaderboard, type LeaderboardEntry } from "@/hooks/useLeaderboard";
+import CopyAddress from "@/components/shared/CopyAddress";
 import LoadingSkeleton from "./LoadingSkeleton";
 
 export default function Leaderboard() {
@@ -92,8 +92,12 @@ export default function Leaderboard() {
                 <div className="font-semibold text-sm sm:text-base text-white">
                   Your Rank
                 </div>
-                <div className="text-xs sm:text-sm text-zinc-400">
-                  {shortenAddress(currentUserEntry.address)}
+                <div className="text-xs sm:text-sm">
+                  <CopyAddress
+                    address={currentUserEntry.address}
+                    className="text-zinc-400 hover:text-cyan-400"
+                    iconSize="sm"
+                  />
                 </div>
               </div>
             </div>
@@ -192,13 +196,13 @@ export default function Leaderboard() {
                         <div className="w-7 h-7 sm:w-8 sm:h-8 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold flex items-center justify-center rounded-sm text-[10px] sm:text-xs shrink-0">
                           {entry.address.slice(2, 4).toUpperCase()}
                         </div>
-                        <span
+                        <CopyAddress
+                          address={entry.address}
                           className={`text-xs sm:text-sm font-medium truncate ${
-                            isCurrentUser ? "text-cyan-400" : "text-white"
+                            isCurrentUser ? "text-cyan-400 hover:text-cyan-300" : "text-white hover:text-cyan-400"
                           }`}
-                        >
-                          {shortenAddress(entry.address)}
-                        </span>
+                          iconSize="sm"
+                        />
                         {isCurrentUser && (
                           <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded shrink-0">
                             You
@@ -323,8 +327,12 @@ function PodiumCard({
         <div className="w-10 h-10 sm:w-12 sm:h-12 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold flex items-center justify-center rounded-full mx-auto mb-2 sm:mb-3 text-sm sm:text-lg">
           {entry.address.slice(2, 4).toUpperCase()}
         </div>
-        <div className="text-[10px] sm:text-xs text-zinc-400 mb-3 sm:mb-4">
-          {shortenAddress(entry.address)}
+        <div className="text-[10px] sm:text-xs mb-3 sm:mb-4">
+          <CopyAddress
+            address={entry.address}
+            className="text-zinc-400 hover:text-cyan-400"
+            iconSize="sm"
+          />
         </div>
       </div>
 
@@ -391,13 +399,13 @@ function LeaderboardCard({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <span
+              <CopyAddress
+                address={entry.address}
                 className={`text-sm font-medium truncate ${
-                  isCurrentUser ? "text-cyan-400" : "text-white"
+                  isCurrentUser ? "text-cyan-400 hover:text-cyan-300" : "text-white hover:text-cyan-400"
                 }`}
-              >
-                {shortenAddress(entry.address)}
-              </span>
+                iconSize="sm"
+              />
               {isCurrentUser && (
                 <span className="text-xs px-2 py-0.5 bg-cyan-500/20 text-cyan-400 rounded shrink-0">
                   You
@@ -445,10 +453,6 @@ function LeaderboardCard({
       </div>
     </div>
   );
-}
-
-function shortenAddress(address: Address | string): string {
-  return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
 function formatNumber(value: string): string {

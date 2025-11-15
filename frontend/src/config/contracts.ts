@@ -29,27 +29,27 @@ export const CONTRACTS = {
     chainId: 97,
     name: "BNB Smart Chain Testnet",
     foreToken: {
-      address: "0xe44Ea520518CCD7709CD13BCd37161518fA2e580",
+      address: "0x5DE0b93d59D4AFd803649f5D333030b33CfddFC6",
       abi: foreAbi,
     },
     predictionRegistry: {
-      address: "0x09E10ac18B55faBb5ac37022EF35ecDd42594EDc",
+      address: "0xC46b51268B9BD8a8190B2106354415B58CF34787",
       abi: predictionRegistryAbi,
     },
     predictionMarket: {
-      address: "0xfe155C98757879dD24fF20447bf1E9E7E0e421d1",
+      address: "0x0E4830E472F90B7C2Fa271206A07B5Cc36f940bF",
       abi: predictionMarketAbi,
     },
     resolutionOracle: {
-      address: "0xc4b9aA01fF29ee4b0D86Cd68a3B4393Ee30BfAdc",
+      address: "0x5ca009564018ac4eb6D2B41FC455f9a505118df5",
       abi: resolutionOracleAbi,
     },
     prophetPortfolio: {
-      address: "0x2F94149647D5167859131E0f905Efe9E09EAC9C5",
+      address: "0x7C4F78B708c94B38f5f8592702033abF43688098",
       abi: prophetPortfolioAbi,
     },
     socialMetrics: {
-      address: "0xD5E5DDF4f998F276Bb736aBB87a6a4Abd65F0E77",
+      address: "0x51535762f7Fd1886ADaF6f82e5BacAEcf2D22f34",
       abi: socialMetricsAbi,
     },
   },

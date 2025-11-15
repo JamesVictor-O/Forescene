@@ -26,8 +26,8 @@ type CategorySectionProps = {
   setCustomCategory: (value: string) => void;
   deadline: string;
   setDeadline: (value: string) => void;
-  creatorFee: string;
-  setCreatorFee: (value: string) => void;
+  stakeAmount: string;
+  setStakeAmount: (value: string) => void;
 };
 
 function CategorySection({
@@ -37,8 +37,8 @@ function CategorySection({
   setCustomCategory,
   deadline,
   setDeadline,
-  creatorFee,
-  setCreatorFee,
+  stakeAmount,
+  setStakeAmount,
 }: CategorySectionProps) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -86,20 +86,23 @@ function CategorySection({
           required
         />
       </div>
-      <div className="space-y-2">
+      <div className="space-y-2 sm:col-span-2">
         <label className="text-xs uppercase tracking-wide text-zinc-500">
-          Creator Fee (bps)
+          Your Stake Amount (FORE) *
         </label>
         <input
           type="number"
           min={0}
-          max={MAX_CREATOR_FEE}
-          value={creatorFee}
-          onChange={(event) => setCreatorFee(event.target.value)}
+          step="0.01"
+          value={stakeAmount}
+          onChange={(event) => setStakeAmount(event.target.value)}
+          placeholder="e.g. 100"
           className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+          required
         />
         <p className="text-[10px] text-zinc-500">
-          Default 250 bps (2.5%). Maximum 10,000 bps (100%).
+          Amount of FORE tokens you&apos;re staking on your prediction. This
+          will be locked in escrow and shared with winners.
         </p>
       </div>
     </div>
@@ -135,6 +138,10 @@ function stepMessage(step: CreatePredictionStep) {
       return "Validating prediction details…";
     case "uploading":
       return "Uploading content to IPFS…";
+    case "checking-allowance":
+      return "Checking token allowance…";
+    case "approving":
+      return "Approving token spend…";
     case "submitting":
       return "Submitting transaction…";
     case "waiting":
@@ -155,8 +162,6 @@ const CATEGORY_OPTIONS = [
   "politics",
   "tech",
 ];
-
-const MAX_CREATOR_FEE = 10_000;
 
 export default function CreatePredictionModal({
   open,
@@ -187,8 +192,7 @@ export default function CreatePredictionModal({
   const [useExistingCid, setUseExistingCid] = useState(false);
   const [existingCid, setExistingCid] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [creatorFee, setCreatorFee] = useState("250");
-  const { address } = useAccount();
+  const [stakeAmount, setStakeAmount] = useState("");
 
   const resolvedCategory = useMemo(() => {
     const normalized =
@@ -197,9 +201,6 @@ export default function CreatePredictionModal({
         : category.toLowerCase();
     return normalized || "general";
   }, [category, customCategory]);
-  
-
- 
 
   const resetState = () => {
     reset();
@@ -213,7 +214,7 @@ export default function CreatePredictionModal({
     setUseExistingCid(false);
     setExistingCid("");
     setDeadline("");
-    setCreatorFee("250");
+    setStakeAmount("");
   };
 
   const handleClose = () => {
@@ -228,18 +229,21 @@ export default function CreatePredictionModal({
     if (!ready || !authenticated) return;
     if (!deadline) return;
 
-
     const deadlineSeconds = new Date(deadline).getTime();
     if (!Number.isFinite(deadlineSeconds)) return;
 
-    const fee = Number(creatorFee);
-    if (!Number.isFinite(fee) || fee < 0 || fee > MAX_CREATOR_FEE) return;
+    const stake = Number(stakeAmount);
+    if (!Number.isFinite(stake) || stake <= 0) {
+      alert("Please enter a valid stake amount greater than 0");
+      return;
+    }
 
     const submission = await createPrediction({
       format,
       category: resolvedCategory,
       deadline: Math.floor(deadlineSeconds / 1000),
-      creatorFeeBps: Math.floor(fee),
+      creatorFeeBps: 0, // Use default fee (250 bps = 2.5%)
+      creatorStake: stakeAmount,
       title: title.trim() || undefined,
       summary: summary.trim() || undefined,
       existingCid: useExistingCid ? existingCid.trim() : undefined,
@@ -263,140 +267,146 @@ export default function CreatePredictionModal({
   if (!open || !portalElement) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-zinc-950/90 backdrop-blur-sm px-3 sm:px-0">
-      <div className="w-full max-w-md sm:max-w-xl bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl overflow-hidden">
+    <div className="fixed inset-0 z-60 flex items-center justify-center bg-zinc-950/90 backdrop-blur-sm px-3 sm:px-0 py-4 sm:py-8">
+      <div className="w-full max-w-md sm:max-w-xl bg-zinc-950 border border-zinc-800 rounded-lg shadow-xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh]">
+        {/* Header - Fixed */}
+        <div className="shrink-0 flex items-start justify-between p-4 sm:p-6 border-b border-zinc-800">
+          <div>
+            <h2 className="text-lg sm:text-xl font-semibold">
+              Create Prediction
+            </h2>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">
+              Craft a high-signal prediction and publish it to your followers.
+              Video entries get more engagement.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="text-zinc-500 hover:text-white transition shrink-0 ml-2"
+            aria-label="Close create prediction modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Scrollable Content */}
         <form
           onSubmit={handleSubmit}
-          className="p-4 sm:p-6 space-y-5 text-white"
+          className="flex flex-col flex-1 overflow-hidden"
         >
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold">
-                Create Prediction
-              </h2>
-              <p className="text-xs sm:text-sm text-zinc-500 mt-1">
-                Craft a high-signal prediction and publish it to your followers.
-                Video entries get more engagement.
-              </p>
+          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-5 text-white">
+            <div className="grid grid-cols-2 gap-2 bg-zinc-900/60 border border-zinc-800 rounded-md p-1">
+              {(
+                [
+                  { label: "Video", value: "video" },
+                  { label: "Text", value: "text" },
+                ] as const
+              ).map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`py-2 rounded-md text-sm font-medium transition-all ${
+                    format === option.value
+                      ? "bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]"
+                      : "border border-transparent text-zinc-400 hover:text-white"
+                  }`}
+                  onClick={() => setFormat(option.value)}
+                >
+                  {option.label}
+                </button>
+              ))}
             </div>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wide text-zinc-500">
+                Prediction Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="Give your prediction a punchy title"
+                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs uppercase tracking-wide text-zinc-500">
+                Summary (optional)
+              </label>
+              <textarea
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                placeholder="Add extra context or the thesis behind your prediction"
+                rows={3}
+                className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
+              />
+            </div>
+
+            <ContentSection
+              format={format}
+              useExistingCid={useExistingCid}
+              setUseExistingCid={setUseExistingCid}
+              existingCid={existingCid}
+              setExistingCid={setExistingCid}
+              videoFile={videoFile}
+              setVideoFile={setVideoFile}
+              textContent={textContent}
+              setTextContent={setTextContent}
+              isUploading={isUploading}
+              uploadProgress={uploadProgress}
+            />
+
+            <CategorySection
+              category={category}
+              setCategory={setCategory}
+              customCategory={customCategory}
+              setCustomCategory={setCustomCategory}
+              deadline={deadline}
+              setDeadline={setDeadline}
+              stakeAmount={stakeAmount}
+              setStakeAmount={setStakeAmount}
+            />
+
+            {error && <p className="text-xs text-red-400">{error.message}</p>}
+            {!error && transactionHash && (
+              <p className="text-xs text-cyan-400 break-all">
+                Transaction: {transactionHash}
+              </p>
+            )}
+            {currentStep !== "idle" && (
+              <p className="text-[11px] text-zinc-500">
+                {stepMessage(currentStep)}
+              </p>
+            )}
+          </div>
+
+          {/* Footer - Fixed */}
+          <div className="shrink-0 p-4 sm:p-6 border-t border-zinc-800 bg-zinc-950">
             <button
-              type="button"
-              onClick={handleClose}
-              className="text-zinc-500 hover:text-white transition"
-              aria-label="Close create prediction modal"
+              type="submit"
+              disabled={
+                isCreating ||
+                isUploading ||
+                !authenticated ||
+                !ready ||
+                !isConnected ||
+                (format === "video" && !useExistingCid && !videoFile) ||
+                (format === "text" && !useExistingCid && !textContent.trim())
+              }
+              className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-cyan-500/60"
             >
-              <X className="w-5 h-5" />
+              {isCreating || isUploading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {isUploading ? "Uploading..." : "Submitting..."}
+                </>
+              ) : (
+                "Publish Prediction"
+              )}
             </button>
           </div>
-
-          <div className="grid grid-cols-2 gap-2 bg-zinc-900/60 border border-zinc-800 rounded-md p-1">
-            {(
-              [
-                { label: "Video", value: "video" },
-                { label: "Text", value: "text" },
-              ] as const
-            ).map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`py-2 rounded-md text-sm font-medium transition-all ${
-                  format === option.value
-                    ? "bg-cyan-500/20 border border-cyan-500/50 text-cyan-300 shadow-[0_0_12px_rgba(34,211,238,0.25)]"
-                    : "border border-transparent text-zinc-400 hover:text-white"
-                }`}
-                onClick={() => setFormat(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Prediction Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Give your prediction a punchy title"
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-wide text-zinc-500">
-              Summary (optional)
-            </label>
-            <textarea
-              value={summary}
-              onChange={(event) => setSummary(event.target.value)}
-              placeholder="Add extra context or the thesis behind your prediction"
-              rows={3}
-              className="w-full rounded-md border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm focus:border-cyan-500 focus:outline-none"
-            />
-          </div>
-
-          <ContentSection
-            format={format}
-            useExistingCid={useExistingCid}
-            setUseExistingCid={setUseExistingCid}
-            existingCid={existingCid}
-            setExistingCid={setExistingCid}
-            videoFile={videoFile}
-            setVideoFile={setVideoFile}
-            textContent={textContent}
-            setTextContent={setTextContent}
-            isUploading={isUploading}
-            uploadProgress={uploadProgress}
-          />
-
-          <CategorySection
-            category={category}
-            setCategory={setCategory}
-            customCategory={customCategory}
-            setCustomCategory={setCustomCategory}
-            deadline={deadline}
-            setDeadline={setDeadline}
-            creatorFee={creatorFee}
-            setCreatorFee={setCreatorFee}
-          />
-
-
-          {error && <p className="text-xs text-red-400">{error.message}</p>}
-          {!error && transactionHash && (
-            <p className="text-xs text-cyan-400 break-all">
-              Transaction: {transactionHash}
-            </p>
-          )}
-          {currentStep !== "idle" && (
-            <p className="text-[11px] text-zinc-500">
-              {stepMessage(currentStep)}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={
-              isCreating ||
-              isUploading ||
-              !authenticated ||
-              !ready ||
-              !isConnected ||
-              (format === "video" && !useExistingCid && !videoFile) ||
-              (format === "text" && !useExistingCid && !textContent.trim())
-            }
-            className="w-full inline-flex items-center justify-center gap-2 rounded-md bg-cyan-500 px-4 py-2.5 text-sm font-semibold text-zinc-950 transition hover:bg-cyan-400 disabled:cursor-not-allowed disabled:bg-cyan-500/60"
-          >
-            {isCreating || isUploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                {isUploading ? "Uploading..." : "Submitting..."}
-              </>
-            ) : (
-              "Publish Prediction"
-            )}
-          </button>
         </form>
       </div>
     </div>,

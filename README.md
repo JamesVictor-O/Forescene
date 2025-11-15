@@ -2,7 +2,7 @@
 
 **"Predict the Future. Prove You Were Right."**
 
-Forescene is a **social prediction platform** where users create **short-form video/text predictions** about real-world events from sports and crypto to pop culture and politics — and **earn rewards for accuracy and influence**.
+Forescene is a **decentralized social prediction platform** where users create **short-form video/text predictions** about real-world events from sports and crypto to pop culture and politics — and **earn rewards for accuracy and influence**.
 
 Think Of It As **TikTok meets Polymarket**, where your predictions build your reputation, your audience, and your on-chain portfolio.
 
@@ -10,12 +10,15 @@ Think Of It As **TikTok meets Polymarket**, where your predictions build your re
 
 ## 🌍 Vision
 
-The world is full of opinions — but there’s no proof of who was _actually right_ when things play out.
+To make Prediction Fun, Engaging And Rewarding
+
+The world is full of opinions, but there’s no proof of who was _actually right_ when things play out.
 
 **Forescene** turns _predictions_ into _digital assets_ — making it fun, social, and rewarding to call the future correctly.
 
 We’re building a future where:
 
+- Pridiction is gamified
 - Insight is rewarded.
 - Reputation is quantifiable.
 - Predictions become a form of expression, not just speculation.
@@ -26,11 +29,10 @@ We’re building a future where:
 ## 🎯 The Problem
 
 Prediction markets today are:
-
-- ❌ Text-heavy, complex, and boring.
-- ❌ Desktop-focused, not mobile-first.
+- ❌ Prediction Platforms Are Too Complex for Mainstream Users
 - ❌ Financially driven, not socially engaging.
 - ❌ Lacking creator incentives or reputation systems.
+- ❌ There’s No Social Home for Prediction Culture
 
 Meanwhile, millions of people on TikTok, X, and YouTube make bold predictions daily — but those insights are **lost in the feed**.  
 No one tracks accuracy. No one gets rewarded.
@@ -44,17 +46,22 @@ No one tracks accuracy. No one gets rewarded.
 Creators post **15–60 second prediction videos**, staking confidence points (or tokens) to prove belief.  
 When outcomes are verified, accurate predictors earn rewards and reputation — creating an economy of truth and foresight.
 
+- A Social Layer for Predictions
+- Skin-in-the-Game Engagement
+- Communities That Turn Insight Into Culture
+- Verified Outcomes & Reputation
+
 ---
 
 ## 🎮 How It Works
 
 ### 👤 For Predictors (Creators)
 
-1. **Record a Prediction Video**
+1. **Record a Prediction Video or write your Prediction**
 
    - Example: “BTC will hit $100K before December 31.”
    - Add tags like `#crypto` or `#sports`.
-   - AI automatically extracts and structures your claim.
+   - AI automatically extracts and structures your claim and verify if this Prediction is a verifiable one.
 
 2. **Stake Your Confidence**
 
@@ -85,6 +92,7 @@ When outcomes are verified, accurate predictors earn rewards and reputation — 
 
    - Bet on specific predictions you believe in or against.
    - Or back entire predictor portfolios (trust the talent).
+   - Also decide to Reshare Prediction, which allows your folllowers to bet on that Prediction too. you earn the original creatore earns too
 
 3. **Trade Positions**
 

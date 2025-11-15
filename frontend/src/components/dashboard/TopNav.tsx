@@ -4,11 +4,8 @@ import React, { useMemo, useState } from "react";
 import { Search, Plus, Bell, Menu, X } from "lucide-react";
 import Image from "next/image";
 import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
+import CopyAddress from "@/components/shared/CopyAddress";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
-
-function shortenAddress(address: string): string {
-  return `${address.slice(0, 5)}…${address.slice(-3)}`;
-}
 
 type ForeBalance = {
   formatted: string;
@@ -28,11 +25,6 @@ export default function TopNav({ onOpenCreate, balance }: TopNavProps) {
  
 
   const primaryWalletAddress = wallets?.[0]?.address;
-  const mobileWalletLabel = !ready
-    ? "…"
-    : authenticated && primaryWalletAddress
-    ? shortenAddress(primaryWalletAddress)
-    : "Connect";
 
   const handleMobileWalletClick = () => {
     if (!ready) return;
@@ -119,12 +111,26 @@ export default function TopNav({ onOpenCreate, balance }: TopNavProps) {
             </button>
 
             {/* Mobile wallet pill */}
-            <button
-              onClick={handleMobileWalletClick}
-              className="lg:hidden px-3 py-2 bg-zinc-900/60 border border-zinc-800/70 text-xs font-medium text-zinc-200 rounded-xl hover:border-cyan-500/50 hover:text-cyan-100 transition-colors"
-            >
-              {mobileWalletLabel}
-            </button>
+            {!ready ? (
+              <span className="lg:hidden px-3 py-2 bg-zinc-900/60 border border-zinc-800/70 text-xs font-medium text-zinc-200 rounded-xl">
+                …
+              </span>
+            ) : authenticated && primaryWalletAddress ? (
+              <div className="lg:hidden">
+                <CopyAddress
+                  address={primaryWalletAddress}
+                  className="px-3 py-2 bg-zinc-900/60 border border-zinc-800/70 text-xs font-medium text-zinc-200 rounded-xl hover:border-cyan-500/50 hover:text-cyan-100 transition-colors"
+                  iconSize="sm"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={handleMobileWalletClick}
+                className="lg:hidden px-3 py-2 bg-zinc-900/60 border border-zinc-800/70 text-xs font-medium text-zinc-200 rounded-xl hover:border-cyan-500/50 hover:text-cyan-100 transition-colors"
+              >
+                Connect
+              </button>
+            )}
 
             <button
               onClick={() => setMenuOpen((prev) => !prev)}

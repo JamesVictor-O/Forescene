@@ -57,14 +57,17 @@ contract PredictionMarketTest is Test {
     }
 
     function testCreatePrediction() public {
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 100 * 1e18);
         uint256 predictionId = registry.createPrediction(
             "QmTest123",
             IPredictionRegistry.Format.VIDEO,
             "crypto",
             block.timestamp + 7 days,
-            500 // 5% creator fee
+            500, // 5% creator fee
+            100 * 1e18 // creator stake
         );
+        vm.stopPrank();
 
         assertEq(predictionId, 1);
 
@@ -75,10 +78,12 @@ contract PredictionMarketTest is Test {
 
     function testStakeFor() public {
         // Create prediction
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 100 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500, 100 * 1e18
         );
+        vm.stopPrank();
 
         // Stake FOR
         vm.startPrank(user2);
@@ -91,20 +96,24 @@ contract PredictionMarketTest is Test {
     }
 
     function testQuoteOdds() public {
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 100 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500, 100 * 1e18
         );
+        vm.stopPrank();
 
         uint256 odds = market.quoteOdds(predictionId, IPredictionMarket.Side.FOR, 100 * 1e18);
         assertGt(odds, 1e18); // Should be > 1x
     }
 
     function testQuickStakeUsesPreset() public {
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 50 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmQuick", IPredictionRegistry.Format.TEXT, "macro", block.timestamp + 5 days, 400
+            "QmQuick", IPredictionRegistry.Format.TEXT, "macro", block.timestamp + 5 days, 400, 50 * 1e18
         );
+        vm.stopPrank();
 
         vm.startPrank(user2);
         token.approve(address(market), 200 * 1e18);
@@ -117,10 +126,12 @@ contract PredictionMarketTest is Test {
 
     function testResolveAndClaim() public {
         // Create and stake
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 100 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 1 days, 500
+            "QmTest123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 1 days, 500, 100 * 1e18
         );
+        vm.stopPrank();
 
         vm.startPrank(user2);
         token.approve(address(market), 100 * 1e18);
@@ -161,10 +172,12 @@ contract PredictionMarketTest is Test {
         vm.prank(owner);
         market.pause();
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 50 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmPause", IPredictionRegistry.Format.VIDEO, "culture", block.timestamp + 3 days, 0
+            "QmPause", IPredictionRegistry.Format.VIDEO, "culture", block.timestamp + 3 days, 0, 50 * 1e18
         );
+        vm.stopPrank();
 
         vm.startPrank(user2);
         token.approve(address(market), 50 * 1e18);
@@ -183,10 +196,12 @@ contract PredictionMarketTest is Test {
         vm.prank(owner);
         isolated.setOracle(address(oracle));
 
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 25 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmCopyFail", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 4 days, 500
+            "QmCopyFail", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 4 days, 500, 25 * 1e18
         );
+        vm.stopPrank();
 
         vm.startPrank(user2);
         token.approve(address(isolated), 25 * 1e18);
@@ -196,10 +211,12 @@ contract PredictionMarketTest is Test {
     }
 
     function testCopyPrediction() public {
-        vm.prank(user1);
+        vm.startPrank(user1);
+        token.approve(address(market), 50 * 1e18);
         uint256 predictionId = registry.createPrediction(
-            "QmCopy123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500
+            "QmCopy123", IPredictionRegistry.Format.VIDEO, "crypto", block.timestamp + 7 days, 500, 50 * 1e18
         );
+        vm.stopPrank();
 
         vm.startPrank(user2);
         token.approve(address(market), 50 * 1e18);

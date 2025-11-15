@@ -1,5 +1,5 @@
 import React from "react";
-import { Home, Trophy, Target, Plus } from "lucide-react";
+import { Home, Trophy, Target, Plus, BarChart3 } from "lucide-react";
 
 type MobileBottomNavProps = {
   activeTab: string;
@@ -19,6 +19,12 @@ const NAV_ITEMS: Array<{
     icon: <Trophy className="w-5 h-5" />,
   },
   { key: "backed", label: "Backed", icon: <Target className="w-5 h-5" /> },
+
+  {
+    key: "leaderboard",
+    label: "Leaderboard",
+    icon: <BarChart3 className="w-5 h-5" />,
+  },
 ];
 
 export default function MobileBottomNav({

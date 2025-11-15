@@ -44,6 +44,8 @@ export type PredictionRecord = {
   formattedTotalStaked?: string;
   formattedForPool?: string;
   formattedAgainstPool?: string;
+  creatorStake?: bigint;
+  formattedCreatorStake?: string;
 };
 
 const DEFAULT_GATEWAY =
@@ -70,19 +72,11 @@ function isValidCID(cid: string): boolean {
 
   if (trimmed.length < 10 || trimmed.length > 200) return false;
 
-  // Check if it looks like a valid CID format
-  // CIDs are base58 (v0) or base32 (v1) encoded, so alphanumeric only
-  // v0: Qm... (46 chars), v1: bafy... or similar
   return (
     /^[a-zA-Z0-9]+$/.test(trimmed) &&
     (trimmed.startsWith("Qm") || trimmed.startsWith("b"))
   );
 }
-
-/**
- * Fetches Pinata metadata for a given CID (non-blocking, optional)
- * Only called when necessary to avoid rate limiting
- */
 async function fetchPinataMetadata(
   cid: string
 ): Promise<{ name?: string } | null> {
@@ -518,18 +512,32 @@ export function useAllPredictions() {
         return [];
       }
 
-      const oddsResults = await publicClient.multicall({
-        contracts: filteredPredictions.map(
-          (prediction) =>
-            ({
-              address: market.address,
-              abi: market.abi,
-              functionName: "getPool",
-              args: [BigInt(prediction.id)],
-            } as const)
-        ),
-        allowFailure: true,
-      });
+      const [oddsResults, creatorStakeResults] = await Promise.all([
+        publicClient.multicall({
+          contracts: filteredPredictions.map(
+            (prediction) =>
+              ({
+                address: market.address,
+                abi: market.abi,
+                functionName: "getPool",
+                args: [BigInt(prediction.id)],
+              } as const)
+          ),
+          allowFailure: true,
+        }),
+        publicClient.multicall({
+          contracts: filteredPredictions.map(
+            (prediction) =>
+              ({
+                address: market.address,
+                abi: market.abi,
+                functionName: "getCreatorStake",
+                args: [BigInt(prediction.id)],
+              } as const)
+          ),
+          allowFailure: true,
+        }),
+      ]);
 
       const poolDataMap = new Map<
         number,
@@ -539,11 +547,19 @@ export function useAllPredictions() {
           totalStaked: bigint;
           oddsFor: number;
           oddsAgainst: number;
+          creatorStake: bigint;
         }
       >();
 
       filteredPredictions.forEach((prediction, index) => {
         const oddsResult = oddsResults[index];
+        const creatorStakeResult = creatorStakeResults[index];
+
+        let creatorStake = BigInt(0);
+        if (creatorStakeResult && creatorStakeResult.status === "success") {
+          creatorStake = creatorStakeResult.result as bigint;
+        }
+
         if (oddsResult && oddsResult.status === "success") {
           const pool = oddsResult.result as {
             forPool: bigint;
@@ -558,6 +574,7 @@ export function useAllPredictions() {
             totalStaked: pool.totalStaked,
             oddsFor: Number(formatUnits(pool.forPool, 18)),
             oddsAgainst: Number(formatUnits(pool.againstPool, 18)),
+            creatorStake,
           });
         } else {
           poolDataMap.set(prediction.id, {
@@ -566,6 +583,7 @@ export function useAllPredictions() {
             totalStaked: BigInt(0),
             oddsFor: 0,
             oddsAgainst: 0,
+            creatorStake,
           });
         }
       });
@@ -577,6 +595,7 @@ export function useAllPredictions() {
           totalStaked: BigInt(0),
           oddsFor: 0,
           oddsAgainst: 0,
+          creatorStake: BigInt(0),
         };
 
         return {
@@ -587,6 +606,8 @@ export function useAllPredictions() {
           formattedTotalStaked: formatUnits(poolData.totalStaked, 18),
           formattedForPool: formatUnits(poolData.forPool, 18),
           formattedAgainstPool: formatUnits(poolData.againstPool, 18),
+          creatorStake: poolData.creatorStake,
+          formattedCreatorStake: formatUnits(poolData.creatorStake, 18),
           metadata: {
             ...prediction.metadata,
             odds: {
