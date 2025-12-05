@@ -1,58 +1,58 @@
-import React from 'react';
+import React from "react";
+import { Activity, Brain, Medal } from "lucide-react";
 
-type FeatureCardProps = {
+const FeatureCard: React.FC<{
+  icon: React.ReactNode;
   title: string;
   description: string;
-};
-
-function FeatureCard({  title, description }: FeatureCardProps) {
-  return (
-    <div className="group p-8 bg-zinc-900/40 backdrop-blur-sm border border-zinc-800/50 rounded-sm hover:border-cyan-500/30 hover:bg-zinc-900/60 transition-all duration-300">
-    
-      <h3 className="text-lg font-semibold mb-3">{title}</h3>
-      <p className="text-zinc-400 text-sm leading-relaxed font-light">{description}</p>
+}> = ({ icon, title, description }) => (
+  <div className="flex flex-1 gap-5 rounded-2xl border border-white/5 bg-[#1a1714] p-8 flex-col items-start text-left transition-all hover:border-primary/30 hover:bg-[#201c18] group">
+    <div className="text-primary/80 group-hover:text-primary transition-colors mb-2">
+      {icon}
     </div>
-  );
-}
+    <div className="flex flex-col gap-2">
+      <h3 className="text-white text-lg font-bold leading-tight">{title}</h3>
+      <p className="text-[#baad9c] text-sm font-normal leading-relaxed">
+        {description}
+      </p>
+    </div>
+  </div>
+);
 
-export default function Features() {
+const Features: React.FC = () => {
   return (
-    <section id="features" className="py-24 px-4 relative">
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-16">
-          <h2 className="text-4xl md:text-6xl font-bold mb-6">Unique Features</h2>
-          <p className="text-zinc-400 text-lg font-light">Everything you need to predict, prove, and profit</p>
+    <section className="w-full py-20 px-4 mt-8">
+      <div className="max-w-[1080px] mx-auto flex flex-col gap-16">
+        <div className="flex flex-col gap-4 text-center items-center">
+          <h2 className="text-white text-4xl md:text-5xl font-bold leading-tight tracking-tight max-w-3xl">
+            Everything you need to compete and win
+          </h2>
+          <p className="text-white/70 text-lg font-normal leading-relaxed max-w-2xl">
+            Engage with a vibrant community, showcase your cultural knowledge,
+            and rise to the top with our powerful features.
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <FeatureCard 
-            title="Video Predictions" 
-            description="Engage with short-form video content, not boring charts and text." 
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <FeatureCard
+            icon={<Activity size={40} />}
+            title="Live Event Predictions"
+            description="Make predictions on events as they happen and see results in real-time. Feel the pulse of the culture."
           />
-          <FeatureCard 
-            title="Prophet Portfolios" 
-            description="Your prediction history as a verified, tradeable NFT identity." 
+          <FeatureCard
+            icon={<Brain size={40} />}
+            title="Cultural Quizzes"
+            description="Test your knowledge on a wide range of topics in African culture, from Afrobeats history to cinema."
           />
-          <FeatureCard 
-            title="Prediction Battles" 
-            description="Challenge others with opposing predictions. Community decides the winner." 
-          />
-          <FeatureCard 
-            title="Squad Mode" 
-            description="Form teams, pool knowledge, and share winnings together." 
-          />
-          <FeatureCard 
-            title="Multiple Earnings" 
-            description="Earn from accuracy, influence fees, reputation growth, and sponsorships." 
-          />
-          <FeatureCard 
-            title="AI-Powered" 
-            description="Automatic claim extraction and verification using advanced AI." 
+          <FeatureCard
+            icon={<Medal size={40} />}
+            title="Community Leaderboards"
+            description="See how you stack up against other players and friends. Weekly, monthly, and all-time champions."
           />
         </div>
       </div>
     </section>
   );
-}
+};
 
-
+export default Features;

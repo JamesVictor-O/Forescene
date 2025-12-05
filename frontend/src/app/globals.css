@@ -8,6 +8,20 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* Brand colors */
+  --color-primary: #f2930d;
+  --color-primary-light: #ffb84d;
+  --color-primary-dark: #d98000;
+  --color-background-light: #f8f7f5;
+  --color-background-dark: #181511;
+  --color-brand-dark: #12100e;
+  /* Surface colors (dashboard) */
+  --color-surface-light: #ffffff;
+  --color-surface-dark: #2d2416;
+  /* Accents and cards */
+  --color-accent-teal: #00f5d4;
+  --color-accent-magenta: #ff007f;
+  --color-card-dark: #2c2c2c;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -27,5 +41,23 @@ body {
 
 /* Custom font utility for Poppins */
 .font-pop {
-  font-family: var(--font-pop), var(--font-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+  font-family: var(--font-pop), var(--font-sans), ui-sans-serif, system-ui,
+    -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* Display font utility using Be Vietnam Pro */
+.font-display {
+  font-family: var(--font-display), var(--font-sans), ui-sans-serif, system-ui,
+    -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans",
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
 }

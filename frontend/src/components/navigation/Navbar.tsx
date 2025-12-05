@@ -1,50 +1,81 @@
 "use client";
+import React, { useState } from "react";
+import { Menu, X } from "lucide-react";
+import { Logo } from "./Logo";
+import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
 
-import React, { useState } from 'react';
-import { Menu, X } from 'lucide-react';
-import Image from 'next/image';
-import ConnectWalletButton from '@/components/shared/ConnectWalletButton';
-
-export default function Navbar() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const Header: React.FC = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="fixed top-0 w-full bg-zinc-950/80 backdrop-blur-sm border-b border-zinc-800/50 z-50">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <Image src="/Logo2.png" alt="Forescene" width={32} height={32} className="object-contain" />
-            <span className="ml-2 text-sm font-medium text-zinc-300 hidden sm:block">FORESCENE</span>
+    <header className="w-full sticky top-5 z-50">
+      <div className="flex items-center justify-between whitespace-nowrap bg-brand-dark/80 backdrop-blur-md border border-white/10 px-6 py-3 rounded-full shadow-2xl">
+        {/* Logo Section */}
+        <div className="flex items-center gap-3 text-white">
+          <div className="text-primary h-8 w-8">
+            <Logo />
           </div>
+          <h2 className="text-white text-lg font-bold leading-tight tracking-tight">
+            Forescene
+          </h2>
+        </div>
 
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#features" className="text-zinc-400 hover:text-white text-sm font-light transition-colors uppercase tracking-wider">Features</a>
-            <a href="#how-it-works" className="text-zinc-400 hover:text-white text-sm font-light transition-colors uppercase tracking-wider">How It Works</a>
-            <ConnectWalletButton variant="glass" />
-          </div>
+        {/* Desktop Navigation */}
+        <div className="hidden md:flex flex-1 justify-end items-center gap-8">
+          <nav className="flex items-center gap-8">
+            <a
+              href="#how-it-works"
+              className="text-white/80 hover:text-primary transition-colors text-sm font-medium"
+            >
+              How it Works
+            </a>
+            <a
+              href="#leaderboard"
+              className="text-white/80 hover:text-primary transition-colors text-sm font-medium"
+            >
+              Leaderboard
+            </a>
+          </nav>
+          <ConnectWalletButton className="rounded-full h-10 px-5 bg-primary hover:bg-primary-light hover:shadow-glow-primary text-black text-sm font-bold tracking-wide" />
+        </div>
 
+        {/* Mobile Menu Toggle */}
+        <div className="md:hidden flex items-center">
           <button
-            className="md:hidden text-zinc-400 hover:text-white transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Toggle menu"
-            aria-expanded={mobileMenuOpen}
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="text-white p-1 hover:text-primary transition-colors"
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {isMobileMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
       </div>
 
-      {mobileMenuOpen && (
-        <div className="md:hidden bg-zinc-950/95 backdrop-blur-sm border-t border-zinc-800/50">
-          <div className="px-4 py-4 space-y-3">
-            <a href="#features" className="block text-zinc-400 hover:text-white text-sm uppercase tracking-wider">Features</a>
-            <a href="#how-it-works" className="block text-zinc-400 hover:text-white text-sm uppercase tracking-wider">How It Works</a>
-            <ConnectWalletButton variant="glass" fullWidth className="text-center" />
+      {/* Mobile Menu Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="absolute top-full left-0 right-0 mt-2 mx-4 p-4 rounded-2xl bg-[#1a1714] border border-white/10 shadow-2xl md:hidden flex flex-col gap-4 animate-in slide-in-from-top-2 fade-in duration-200">
+          <a
+            href="#how-it-works"
+            className="text-white/90 hover:text-primary px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            How it Works
+          </a>
+          <a
+            href="#leaderboard"
+            className="text-white/90 hover:text-primary px-4 py-2 rounded-lg hover:bg-white/5 transition-colors"
+          >
+            Leaderboard
+          </a>
+          <hr className="border-white/10 my-1" />
+          <div className="flex flex-col gap-3">
+            <ConnectWalletButton
+              fullWidth
+              className="h-10 rounded-full bg-primary text-black font-bold text-sm hover:bg-primary-light shadow-button-glow"
+            />
           </div>
         </div>
       )}
-    </nav>
+    </header>
   );
-}
+};
 
-
+export default Header;
