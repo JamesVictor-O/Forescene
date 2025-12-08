@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Poppins } from "next/font/google";
+import { Geist, Geist_Mono, Poppins, Be_Vietnam_Pro } from "next/font/google";
 import Providers from "./providers";
 import "./globals.css";
 
@@ -17,6 +17,13 @@ const poppins = Poppins({
   variable: "--font-pop",
   weight: ["300", "400", "500", "600", "700", "800"],
   subsets: ["latin"],
+  display: "swap",
+});
+
+const beVietnam = Be_Vietnam_Pro({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: ["400", "500", "700", "900"],
   display: "swap",
 });
 
@@ -55,9 +62,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable} ${beVietnam.variable} antialiased`}
       >
         <Providers>
           {children}

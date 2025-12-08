@@ -65,7 +65,7 @@ export default function SidebarLeft({
   }, [primaryWalletAddress, balance, userStats.earnings]);
 
   return (
-    <aside className="fixed left-0 w-64 h-screen bg-zinc-950 border-r border-zinc-800 hidden lg:block">
+    <aside className="fixed top-0 left-0 w-64 h-screen bg-zinc-950 border-r border-zinc-800 hidden lg:block overflow-y-auto">
       <div className="p-6 space-y-6">
         {/* Navigation */}
         <nav className="space-y-2">

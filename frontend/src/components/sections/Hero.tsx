@@ -1,68 +1,66 @@
 "use client";
-
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { usePrivy } from "@privy-io/react-auth";
-import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
 
-export default function Hero() {
-  const { authenticated, ready } = usePrivy();
+const Hero: React.FC = () => {
+  const router = useRouter();
+  const { authenticated, ready, login } = usePrivy();
 
-  const showExplore = ready && authenticated;
+  const handleCtaClick = () => {
+    if (!ready) return;
+    if (authenticated) {
+      router.push("/dashboard");
+    } else {
+      login();
+    }
+  };
 
   return (
-    <section className="pt-32 pb-20 px-4 h-screen">
-      <div className="max-w-7xl mx-auto text-center">
-        <div className="inline-block px-4 py-1 bg-zinc-900 border border-zinc-800 mb-6">
-          <span className="text-cyan-500 text-sm font-semibold">
-            TikTok meets Polymarket
-          </span>
-        </div>
-
-        {/* Main headline - classic dapp style */}
-        <div className="mb-6">
-          {/* <div className="text-zinc-400 text-sm md:text-4xl font-light mb-4 tracking-wider uppercase">
-            Drop a Prediction.
+    <section className="@container w-full">
+      <div className="flex flex-col gap-10 px-4 py-16 text-center items-center md:py-24 lg:py-32">
+        <div className="flex flex-col gap-6 items-center max-w-4xl mx-auto">
+          <div className="flex flex-col gap-6 text-center">
+            <h1 className="text-white text-5xl sm:text-6xl md:text-7xl font-black leading-[1.1] tracking-tight">
+              Predict. Compete. <span className="text-primary">Win.</span>
+            </h1>
+            <h2 className="text-white/80 text-base sm:text-lg md:text-xl font-normal leading-relaxed max-w-2xl mx-auto">
+              This is Forescene the ultimate prediction game on African culture.
+              Test your foresight on music, events, and trends. Rise to the
+              challenge and claim your spot on the leaderboard.
+            </h2>
           </div>
-          <h1 className="text-6xl md:text-5xl lg:text-7xl font-bold mb-4 leading-none tracking-tight">
-            Watch It Blow Up, 
-            <br />
-            Profit If You Called It.
-          </h1> */}
 
-          {/* <div className="text-zinc-400 text-sm md:text-4xl font-light mb-4 tracking-wider uppercase">
-            Prediction.
-          </div> */}
-          <h1 className="text-6xl md:text-5xl lg:text-7xl font-bold mb-4 leading-none tracking-tight">
-            Prediction.
-            <br />
-            Made Fun, Engaging,
-            <br />
-            And Rewarding.
-          </h1>
+          <button
+            onClick={handleCtaClick}
+            className="group relative flex w-auto min-w-[160px] cursor-pointer items-center justify-center overflow-hidden rounded-full h-12 px-8 sm:h-14 sm:px-10 bg-primary text-black text-base sm:text-lg font-bold leading-normal tracking-wide shadow-button-glow hover:bg-primary-light transition-all transform hover:scale-105 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed"
+            disabled={!ready}
+          >
+            <span className="relative z-10">Play Now & Prove Your Insight</span>
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out" />
+          </button>
         </div>
 
-        {/* Description */}
-        <p className="text-zinc-400 text-base md:text-2xl max-w-2xl mx-auto mb-12 font-light leading-relaxed">
-          The social prediction platform where you can drop short-form video or
-          text predictions. Stake belief or doubt. Build your on-chain
-          reputation.
-        </p>
+        {/* Hero Image Container */}
+        <div className="relative w-full max-w-5xl mx-auto mt-8 sm:mt-12 group perspective-1000">
+          {/* Glow Effect behind image */}
+          <div className="absolute -inset-1 sm:-inset-4 rounded-xl sm:rounded-3xl bg-primary/30 blur-2xl sm:blur-3xl opacity-50 group-hover:opacity-70 transition-opacity duration-700"></div>
 
-        {/* CTA Button - minimal */}
-        <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16">
-          {showExplore ? (
-            <Link
-              href="/dashboard"
-              className="px-8 py-3.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 font-medium text-sm hover:bg-cyan-500/20 hover:border-cyan-500/40 transition-all duration-300 rounded-sm"
-            >
-              EXPLORE PREDICTIONS
-            </Link>
-          ) : (
-            <ConnectWalletButton variant="primary" showChevron />
-          )}
+          {/* Main Image */}
+          <div className="relative w-full bg-black/50 aspect-[16/9] rounded-xl sm:rounded-2xl border border-primary/30 overflow-hidden shadow-2xl">
+            <img
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDhTX2q7BgmJTCVWDwaiWFjPbJ7uQ_dRWGMGAM_QU6qZ8iEPFsHAfu7P1x6ifbUE6AD6YEdMs6fPSBYOhZaLmbmstoO14wCm-qxwaYQDMUZ3PA0LaKh3kS7u0_b6sjzLe0-3JfpnaRmHt0shk1Qj78bAWUbqE-iZl1pNSj8-jGsuszOGJ3DI5URY6Kl8Uo-eRLvkRJjr97kweWSZPWf1v3aTnXfN4jUgf26B1_6R6gTKPd2UigoeXPIg41k-wF306J5v74ezpXVbqwB"
+              alt="Forescene App Interface Abstract"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+            />
+
+            {/* Overlay Gradient */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
+          </div>
         </div>
       </div>
     </section>
   );
-}
+};
+
+export default Hero;
