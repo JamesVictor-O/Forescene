@@ -1,6 +1,6 @@
 "use client";
-import React from "react";
-import RevampedDashboard from "@/components/dashboard2/RevampedDashboard";
+
+import RevampedDashboard from "@/components/dashboard2/Dashboard";
 
 export default function Dashboard() {
   return <RevampedDashboard />;
