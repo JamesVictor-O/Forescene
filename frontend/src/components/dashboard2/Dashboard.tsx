@@ -1,5 +1,5 @@
-import React, { useState } from "react";
 import { Icons } from "./ui/Icon";
+import Image from "next/image";
 import {
   CURRENT_USER,
   PREDICTIONS,
@@ -17,6 +17,214 @@ import {
 import Leaderboard from "./leaderboard/Leaderboard";
 import StatsCard from "./leaderboard/StatsCard";
 import CreatePredictionModal from "./create/CreatePredictionModal";
+import { useOnchainMarkets } from "@/hooks/useOnchainMarkets";
+import { knowledgePointTokenAbi } from "@/abis/knowledgePointToken";
+import { predictionManagerAbi } from "@/abis/predictionManager";
+import { getContract, getNetworkConfig } from "@/config/contracts";
+import { custom, createPublicClient, createWalletClient, http } from "viem";
+import { useMemo, useState, useEffect } from "react";
+import Button from "./ui/Button";
+import Input from "./ui/Input";
+import { usePrivy } from "@privy-io/react-auth";
+import { OnchainMarket } from "@/hooks/useOnchainMarkets";
+import { useMyMarketPositions } from "@/hooks/useMyMarketPositions";
+
+const BLOCKDAG_RPC = "https://rpc.awakening.bdagscan.com";
+const BLOCKDAG_HEX_CHAIN_ID = "0x413"; // 1043
+
+const MarketCard: React.FC<{
+  market: OnchainMarket;
+  onPlaced?: () => void;
+}> = ({ market, onPlaced }) => {
+  const [amount, setAmount] = useState<string>("10");
+  const [loading, setLoading] = useState<"YES" | "NO" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [tx, setTx] = useState<string | null>(null);
+
+  const kpToken = useMemo(() => getContract("kpToken"), []);
+  const predictionManager = useMemo(() => getContract("predictionManager"), []);
+  const chainId = getNetworkConfig().chainId;
+
+  const handleStake = async (outcome: "YES" | "NO") => {
+    setErr(null);
+    setTx(null);
+    if (!amount || Number(amount) <= 0) {
+      setErr("Enter an amount greater than 0");
+      return;
+    }
+    if (typeof window === "undefined" || !(window as any).ethereum) {
+      setErr("Wallet not found. Please connect a wallet.");
+      return;
+    }
+    const ethereum = (window as any).ethereum;
+    try {
+      setLoading(outcome);
+      // ensure chain
+      const currentChain = await ethereum.request({ method: "eth_chainId" });
+      if (currentChain?.toLowerCase() !== BLOCKDAG_HEX_CHAIN_ID) {
+        try {
+          await ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: BLOCKDAG_HEX_CHAIN_ID }],
+          });
+        } catch (switchErr: any) {
+          if (switchErr?.code === 4902) {
+            await ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: BLOCKDAG_HEX_CHAIN_ID,
+                  chainName: getNetworkConfig().name,
+                  rpcUrls: [BLOCKDAG_RPC],
+                  nativeCurrency: {
+                    name: "BDAG",
+                    symbol: "BDAG",
+                    decimals: 18,
+                  },
+                },
+              ],
+            });
+          } else {
+            throw switchErr;
+          }
+        }
+      }
+
+      const walletClient = createWalletClient({
+        chain: {
+          id: chainId,
+          name: getNetworkConfig().name,
+          nativeCurrency: { name: "BDAG", symbol: "BDAG", decimals: 18 },
+          rpcUrls: { default: { http: [BLOCKDAG_RPC] } },
+        },
+        transport: custom(ethereum),
+      });
+      const publicClient = createPublicClient({
+        chain: {
+          id: chainId,
+          name: getNetworkConfig().name,
+          nativeCurrency: { name: "BDAG", symbol: "BDAG", decimals: 18 },
+          rpcUrls: { default: { http: [BLOCKDAG_RPC] } },
+        },
+        transport: http(BLOCKDAG_RPC),
+      });
+
+      const [account] = await walletClient.getAddresses();
+      if (!account) throw new Error("No account found.");
+
+      const amountWei = BigInt(Math.floor(Number(amount) * 1e18));
+
+      // approve if needed
+      const allowance = (await publicClient.readContract({
+        address: kpToken.address,
+        abi: knowledgePointTokenAbi,
+        functionName: "allowance",
+        args: [account, predictionManager.address],
+      })) as bigint;
+      if (allowance < amountWei) {
+        const approveGas = await publicClient.estimateContractGas({
+          address: kpToken.address,
+          abi: knowledgePointTokenAbi,
+          functionName: "approve",
+          args: [predictionManager.address, amountWei],
+          account,
+        });
+        await walletClient.writeContract({
+          address: kpToken.address,
+          abi: knowledgePointTokenAbi,
+          functionName: "approve",
+          args: [predictionManager.address, amountWei],
+          account,
+          gas: (approveGas * 11n) / 10n,
+        });
+      }
+
+      const choice = outcome === "YES" ? 1 : 2; // enum Outcome {INVALID, YES, NO}
+      const stakeGas = await publicClient.estimateContractGas({
+        address: predictionManager.address,
+        abi: predictionManagerAbi,
+        functionName: "placePrediction",
+        args: [BigInt(market.id), choice, amountWei],
+        account,
+      });
+
+      const txHash = await walletClient.writeContract({
+        address: predictionManager.address,
+        abi: predictionManagerAbi,
+        functionName: "placePrediction",
+        args: [BigInt(market.id), choice, amountWei],
+        account,
+        gas: (stakeGas * 11n) / 10n,
+      });
+      setTx(txHash);
+      if (onPlaced) onPlaced();
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+    } catch (e: any) {
+      setErr(e?.shortMessage || e?.message || "Transaction failed");
+    } finally {
+      setLoading(null);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 p-4 rounded-xl bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-primary">
+          #{market.id} • {market.category || "Uncategorized"}
+        </span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          {market.deadlineTimestamp
+            ? new Date(market.deadlineTimestamp * 1000).toLocaleString()
+            : "—"}
+        </span>
+      </div>
+      <p className="text-white font-bold leading-snug">
+        {market.contentCID || "Untitled market"}
+      </p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Oracle: {market.oracle}
+      </p>
+      <div className="flex items-center gap-2">
+        <Input
+          label="Stake KP"
+          name="stake"
+          type="number"
+          min={0}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          className="flex-1"
+        />
+      </div>
+      <div className="flex gap-2">
+        <Button
+          className="flex-1"
+          disabled={loading !== null}
+          onClick={() => handleStake("YES")}
+        >
+          {loading === "YES" ? "Staking..." : "Yes"}
+        </Button>
+        <Button
+          variant="secondary"
+          className="flex-1"
+          disabled={loading !== null}
+          onClick={() => handleStake("NO")}
+        >
+          {loading === "NO" ? "Staking..." : "No"}
+        </Button>
+      </div>
+      {err && (
+        <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/40 rounded px-3 py-2">
+          {err}
+        </div>
+      )}
+      {tx && (
+        <div className="text-sm text-emerald-400 bg-emerald-400/10 border border-emerald-400/40 rounded px-3 py-2 break-all">
+          Tx: {tx}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const KPStat: React.FC<{ label: string; value: string | number }> = ({
   label,
@@ -110,11 +318,17 @@ const LeagueItem: React.FC<{
 
 export const Header: React.FC = () => {
   return (
-    <header className="sticky top-0 z-10 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-white/10">
+    <header className="fixed top-0 z-50 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-white/10">
       <div className="container mx-auto px-6">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center gap-8">
-            <Icons.Logo className="w-8 h-8" />
+            <Image
+              src={"/Logo2.png"}
+              alt="Logo"
+              width={100}
+              height={50}
+              className="w-10"
+            />
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
               Forescene
             </h2>
@@ -189,7 +403,7 @@ export const Sidebar: React.FC<{
     },
   ];
   return (
-    <aside className="sticky top-24 h-[calc(100vh-6rem)] w-64 flex-col gap-8 bg-surface-light dark:bg-surface-dark p-6 hidden lg:flex border-r border-gray-200 dark:border-white/10 z-20">
+    <aside className="fixed top-24 h-[calc(100vh-7rem)] w-64 flex-col gap-8 bg-surface-light dark:bg-surface-dark p-6 hidden lg:flex border-r border-gray-200 dark:border-white/10 z-20">
       <nav className="flex flex-col gap-2">
         {NAV_ITEMS.map((item) => (
           <button
@@ -230,10 +444,97 @@ export default function RevampedDashboard() {
     "dashboard" | "feed" | "leagues" | "leaderboard" | "history"
   >("dashboard");
   const [createOpen, setCreateOpen] = useState(false);
+  const {
+    markets,
+    loading: marketsLoading,
+    error: marketsError,
+    refetch: refetchMarkets,
+  } = useOnchainMarkets();
+  const { authenticated, ready } = usePrivy();
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [kpBalance, setKpBalance] = useState<string>("0");
+  const [kpLoading, setKpLoading] = useState(false);
+
+  // fetch connected privy wallet
+  useMemo(() => {
+    if (typeof window === "undefined") return;
+    const eth = (window as any).ethereum;
+    if (!eth) return;
+    eth
+      .request({ method: "eth_accounts" })
+      .then((accounts: string[]) => setWalletAddress(accounts?.[0] || null))
+      .catch(() => {});
+  }, [authenticated, ready]);
+
+  const {
+    positions,
+    loading: positionsLoading,
+    error: positionsError,
+    refetch: refetchPositions,
+  } = useMyMarketPositions(markets, walletAddress || undefined);
+
+  const marketMap = useMemo(() => {
+    const map = new Map<number, OnchainMarket>();
+    markets.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [markets]);
+
+  const myActivePositions = useMemo(
+    () => positions.filter((p) => p.yesAmountRaw > 0n || p.noAmountRaw > 0n),
+    [positions]
+  );
+
+  const totalStakedKP = useMemo(() => {
+    return myActivePositions.reduce(
+      (acc, p) => acc + p.yesAmountRaw + p.noAmountRaw,
+      0n
+    );
+  }, [myActivePositions]);
+
+  const formatKP = (wei: bigint) => {
+    const num = Number(wei) / 1e18;
+    if (!Number.isFinite(num)) return "0";
+    return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
+  };
+
+  // fetch KP balance for connected wallet
+  useEffect(() => {
+    const fetchBalance = async () => {
+      if (!walletAddress) {
+        setKpBalance("0");
+        return;
+      }
+      try {
+        setKpLoading(true);
+        const kpToken = getContract("kpToken");
+        const client = createPublicClient({
+          chain: {
+            id: getNetworkConfig().chainId,
+            name: getNetworkConfig().name,
+            nativeCurrency: { name: "BDAG", symbol: "BDAG", decimals: 18 },
+            rpcUrls: { default: { http: [BLOCKDAG_RPC] } },
+          },
+          transport: http(BLOCKDAG_RPC),
+        });
+        const bal = (await client.readContract({
+          address: kpToken.address,
+          abi: knowledgePointTokenAbi,
+          functionName: "balanceOf",
+          args: [walletAddress],
+        })) as bigint;
+        setKpBalance(formatKP(bal));
+      } catch {
+        setKpBalance("0");
+      } finally {
+        setKpLoading(false);
+      }
+    };
+    fetchBalance();
+  }, [walletAddress]);
   return (
     <div className="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 min-h-screen">
       <Header />
-      <main className="container mx-auto  py-8">
+      <main className="container mx-auto  pb-10 pt-24">
         <div className="grid grid-cols-12 gap-8">
           {/* Left Sidebar */}
           <div className="hidden lg:block lg:col-span-3">
@@ -278,13 +579,20 @@ export default function RevampedDashboard() {
                     <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
                       <KPStat
                         label="Knowledge Points"
-                        value={`${CURRENT_USER.kp.toLocaleString()} KP`}
+                        value={kpLoading ? "Loading..." : `${kpBalance} KP`}
                       />
                       <KPStat
                         label="Global Rank"
                         value={`#${CURRENT_USER.rank}`}
                       />
-                      <KPStat label="Predictions" value="18" />
+                      <KPStat
+                        label="Total Bets"
+                        value={
+                          positionsLoading
+                            ? "Loading..."
+                            : `${myActivePositions.length}`
+                        }
+                      />
                       <KPStat label="Win Rate" value="67%" />
                     </div>
                   </div>
@@ -311,6 +619,75 @@ export default function RevampedDashboard() {
                     />
                   </div>
                 </div>
+                {/* My Active On-chain Bets */}
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-gray-900 dark:text-white text-xl font-bold">
+                      My Active On-chain Bets
+                    </h2>
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Total Staked: {formatKP(totalStakedKP)} KP
+                    </div>
+                  </div>
+                  {positionsLoading && (
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                      Loading your positions...
+                    </div>
+                  )}
+                  {positionsError && (
+                    <div className="text-sm text-red-400">{positionsError}</div>
+                  )}
+                  {!positionsLoading &&
+                    !positionsError &&
+                    myActivePositions.length === 0 && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        No active on-chain bets yet.
+                      </div>
+                    )}
+                  {!positionsLoading &&
+                    !positionsError &&
+                    myActivePositions.length > 0 && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {myActivePositions.map((p) => {
+                          const m = marketMap.get(p.marketId);
+                          const side =
+                            p.yesAmountRaw > 0n && p.noAmountRaw > 0n
+                              ? "Both"
+                              : p.yesAmountRaw > 0n
+                              ? "Yes"
+                              : "No";
+                          const staked = p.yesAmountRaw + p.noAmountRaw;
+                          return (
+                            <div
+                              key={p.marketId}
+                              className="flex flex-col gap-2 p-4 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold text-primary">
+                                  #{p.marketId} •{" "}
+                                  {m?.category || "Uncategorized"}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  {m?.deadlineTimestamp
+                                    ? new Date(
+                                        m.deadlineTimestamp * 1000
+                                      ).toLocaleString()
+                                    : "—"}
+                                </span>
+                              </div>
+                              <p className="text-white font-bold leading-snug">
+                                {m?.contentCID || "Untitled market"}
+                              </p>
+                              <div className="flex items-center justify-between text-sm text-gray-300">
+                                <span>Side: {side}</span>
+                                <span>Staked: {formatKP(staked)} KP</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                </div>
               </>
             ) : active === "feed" ? (
               <>
@@ -321,6 +698,38 @@ export default function RevampedDashboard() {
                   <h2 className="text-gray-900 dark:text-white text-xl font-bold">
                     Explore Predictions
                   </h2>
+                  {/* On-chain active markets */}
+                  <div className="flex flex-col gap-3">
+                    {marketsLoading && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        Loading on-chain markets...
+                      </div>
+                    )}
+                    {marketsError && (
+                      <div className="text-sm text-red-400">{marketsError}</div>
+                    )}
+                    {!marketsLoading &&
+                      !marketsError &&
+                      markets.length === 0 && (
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                          No active on-chain markets yet.
+                        </div>
+                      )}
+                    {!marketsLoading && !marketsError && markets.length > 0 && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                        {markets.map((m) => (
+                          <MarketCard
+                            key={m.id}
+                            market={m}
+                            onPlaced={() => {
+                              refetchMarkets();
+                              refetchPositions();
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
                     {PREDICTION_FEED.map((item) => (
                       <FeedPredictionCard

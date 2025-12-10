@@ -4,6 +4,8 @@ import { predictionRegistryAbi } from "@/abis/predictionRegistry";
 import { prophetPortfolioAbi } from "@/abis/prophetPortfolio";
 import { resolutionOracleAbi } from "@/abis/resolutionOracle";
 import { socialMetricsAbi } from "@/abis/socialMetrics";
+import { knowledgePointTokenAbi } from "@/abis/knowledgePointToken";
+import { predictionManagerAbi } from "@/abis/predictionManager";
 
 type ContractDefinition<Abi extends readonly unknown[]> = {
   address: `0x${string}`;
@@ -17,6 +19,8 @@ type ContractEntries = {
   resolutionOracle: ContractDefinition<typeof resolutionOracleAbi>;
   prophetPortfolio: ContractDefinition<typeof prophetPortfolioAbi>;
   socialMetrics: ContractDefinition<typeof socialMetricsAbi>;
+  kpToken: ContractDefinition<typeof knowledgePointTokenAbi>;
+  predictionManager: ContractDefinition<typeof predictionManagerAbi>;
 };
 
 type NetworkConfig = {
@@ -52,6 +56,50 @@ export const CONTRACTS = {
       address: "0x51535762f7Fd1886ADaF6f82e5BacAEcf2D22f34",
       abi: socialMetricsAbi,
     },
+    kpToken: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: knowledgePointTokenAbi,
+    },
+    predictionManager: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: predictionManagerAbi,
+    },
+  },
+  blockdagTestnet: {
+    chainId: 1043,
+    name: "BlockDag Testnet",
+    foreToken: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: foreAbi,
+    },
+    predictionRegistry: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: predictionRegistryAbi,
+    },
+    predictionMarket: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: predictionMarketAbi,
+    },
+    resolutionOracle: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: resolutionOracleAbi,
+    },
+    prophetPortfolio: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: prophetPortfolioAbi,
+    },
+    socialMetrics: {
+      address: "0x0000000000000000000000000000000000000000",
+      abi: socialMetricsAbi,
+    },
+    kpToken: {
+      address: "0x50389e8ca7eA09AA04962667f4C4B8563AdaDefF",
+      abi: knowledgePointTokenAbi,
+    },
+    predictionManager: {
+      address: "0x61F8AaE3781498090f878151Ffb750fDcEe70a20",
+      abi: predictionManagerAbi,
+    },
   },
 } satisfies Record<string, NetworkConfig>;
 
@@ -59,7 +107,7 @@ export type SupportedNetwork = keyof typeof CONTRACTS;
 
 type ContractKey = keyof ContractEntries;
 
-export const ACTIVE_NETWORK: SupportedNetwork = "bscTestnet";
+export const ACTIVE_NETWORK: SupportedNetwork = "blockdagTestnet";
 
 export const getNetworkConfig = (network: SupportedNetwork = ACTIVE_NETWORK) =>
   CONTRACTS[network];

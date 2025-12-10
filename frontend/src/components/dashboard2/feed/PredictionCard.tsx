@@ -80,5 +80,3 @@ export const PredictionCard: React.FC<PredictionCardProps> = ({
 };
 
 export default PredictionCard;
-
-

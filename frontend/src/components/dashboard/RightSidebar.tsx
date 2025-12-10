@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Zap, TrendingUp } from 'lucide-react';
 
 export default function RightSidebar() {

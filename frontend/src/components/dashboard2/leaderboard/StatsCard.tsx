@@ -13,12 +13,15 @@ export const StatsCard: React.FC = () => {
             Your Global Rank: <span className="text-primary">#1,234</span>
           </h3>
           <p className="text-gray-500 dark:text-muted text-sm">
-            You're in the top 15%! Keep predicting to climb higher.
+            You&apos;re in the top 15%! Keep predicting to climb higher.
           </p>
         </div>
         <button className="group flex h-10 w-fit items-center gap-2 rounded-full bg-black/5 dark:bg-background-input px-5 text-sm font-semibold text-black dark:text-white hover:bg-black/10 dark:hover:bg-[#4a4134] transition-all">
           View My Stats
-          <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
+          <ArrowRight
+            size={16}
+            className="transition-transform group-hover:translate-x-1"
+          />
         </button>
       </div>
 
@@ -38,5 +41,3 @@ export const StatsCard: React.FC = () => {
 };
 
 export default StatsCard;
-
-

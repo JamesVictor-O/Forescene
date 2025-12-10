@@ -140,5 +140,3 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ players }) => {
 };
 
 export default Leaderboard;
-
-

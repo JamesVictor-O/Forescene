@@ -2,24 +2,11 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePrivy } from "@privy-io/react-auth";
-import {
-  useAccount,
-  useWalletClient,
-  usePublicClient,
-  useReadContract,
-} from "wagmi";
+import { useAccount, useWalletClient, usePublicClient } from "wagmi";
 import { useState } from "react";
-import {
-  Address,
-  decodeEventLog,
-  Hex,
-  parseUnits,
-  formatUnits,
-  maxUint256,
-} from "viem";
+import { Address, decodeEventLog, Hex } from "viem";
 import { getContract, getNetworkConfig } from "@/config/contracts";
-import { predictionRegistryAbi } from "@/abis/predictionRegistry";
-import { foreAbi } from "@/abis/fore";
+import { predictionManagerAbi } from "@/abis/predictionManager";
 import { usePinataUpload } from "./usePinataUpload";
 
 type PredictionFormat = "video" | "text";
@@ -28,8 +15,8 @@ export type CreatePredictionInput = {
   format: PredictionFormat;
   category: string;
   deadline: number | Date;
-  creatorFeeBps?: number;
-  creatorStake: string;
+  oracle: string;
+  platformFeeBps?: number;
   title?: string;
   summary?: string;
   existingCid?: string;
@@ -41,8 +28,6 @@ export type CreatePredictionStep =
   | "idle"
   | "validating"
   | "uploading"
-  | "checking-allowance"
-  | "approving"
   | "submitting"
   | "waiting"
   | "success"
@@ -78,39 +63,13 @@ export function useCreatePrediction() {
   } = usePinataUpload();
 
   const network = getNetworkConfig();
-  const registry = getContract("predictionRegistry");
-  const market = getContract("predictionMarket");
-  const foreToken = getContract("foreToken");
-
-  // Check current allowance
-  const { data: allowance, refetch: refetchAllowance } = useReadContract({
-    address: foreToken.address,
-    abi: foreAbi,
-    functionName: "allowance",
-    args: address ? [address, market.address] : undefined,
-    query: {
-      enabled: !!address,
-    },
-  });
-
-  // Check user's FORE token balance
-  const { data: balance, refetch: refetchBalance } = useReadContract({
-    address: foreToken.address,
-    abi: foreAbi,
-    functionName: "balanceOf",
-    args: address ? [address] : undefined,
-    query: {
-      enabled: !!address,
-    },
-  });
+  const predictionManager = getContract("predictionManager");
 
   const mutation = useMutation({
     mutationKey: ["create-prediction"],
     mutationFn: async (
       input: CreatePredictionInput
     ): Promise<CreatePredictionResult> => {
-     
-
       if (!ready || !authenticated) {
         throw new Error("Connect your wallet to create a prediction.");
       }
@@ -151,16 +110,15 @@ export function useCreatePrediction() {
         throw new Error("Deadline must be at least one hour in the future.");
       }
 
-      const fee = input.creatorFeeBps ?? 0;
-      if (fee < 0 || fee > 10_000) {
-        throw new Error("Creator fee must be between 0 and 10,000 bps.");
+      const oracleAddress = input.oracle as Address;
+      if (!oracleAddress) {
+        throw new Error("Oracle address is required.");
       }
 
-      const stakeAmount = parseFloat(input.creatorStake);
-      if (!Number.isFinite(stakeAmount) || stakeAmount <= 0) {
-        throw new Error("Creator stake must be greater than 0.");
+      const platformFeeBps = input.platformFeeBps ?? 500; // default 5%
+      if (platformFeeBps < 0 || platformFeeBps > 10_000) {
+        throw new Error("Platform fee must be between 0 and 10,000 bps.");
       }
-      const stakeAmountWei = parseUnits(input.creatorStake, 18);
 
       let cid = input.existingCid?.trim();
       if (!cid) {
@@ -249,108 +207,23 @@ export function useCreatePrediction() {
         throw new Error("Unable to determine content CID.");
       }
 
-      // Check balance
-      setStep("checking-allowance");
-      await refetchBalance();
-      const userBalance = balance ?? BigInt(0);
-
-      if (userBalance < stakeAmountWei) {
-        throw new Error(
-          `Insufficient FORE balance. You have ${formatUnits(
-            userBalance,
-            18
-          )} FORE, but need ${
-            input.creatorStake
-          } FORE to create this prediction.`
-        );
-      }
-
-      // Check allowance
-      await refetchAllowance();
-      const currentAllowance = allowance ?? BigInt(0);
-
-  
-
-      if (currentAllowance < stakeAmountWei) {
-        setStep("approving");
-
-      
-
-        try {
-      
-
-          const { request } = await publicClient.simulateContract({
-            address: foreToken.address,
-            abi: foreAbi,
-            functionName: "approve",
-            args: [market.address, maxUint256],
-            account: address as Address,
-          });
-
-
-          const approveHash = await wagmiWalletClient.writeContract(request);
-
-         
-          const approveReceipt = await publicClient.waitForTransactionReceipt({
-            hash: approveHash,
-            confirmations: 1,
-          });
-          // Refresh allowance
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-          await refetchAllowance();
-
-          const newAllowance = allowance ?? BigInt(0);
-        } catch (error: unknown) {
-
-          const errorMessage =
-            error instanceof Error ? error.message : String(error);
-
-          // More detailed error messages
-          if (errorMessage.toLowerCase().includes("user rejected")) {
-            throw new Error("Transaction rejected by user");
-          }
-
-          if (errorMessage.toLowerCase().includes("insufficient funds")) {
-            throw new Error(
-              "Insufficient ETH for gas fees. Please add ETH to your wallet."
-            );
-          }
-
-          if (
-            errorMessage.toLowerCase().includes("json-rpc") ||
-            errorMessage.toLowerCase().includes("network")
-          ) {
-            throw new Error(
-              "Network error. Please check your RPC connection and try again. Consider switching to a different RPC provider."
-            );
-          }
-
-          // Generic error with details
-          throw new Error(`Approval failed: ${errorMessage}`);
-        }
-      }
-
-      // Create prediction
+      // Create market/prediction via PredictionManager
       setStep("submitting");
 
       try {
-
         const { request } = await publicClient.simulateContract({
-          address: registry.address,
-          abi: predictionRegistryAbi,
-          functionName: "createPrediction",
+          address: predictionManager.address,
+          abi: predictionManagerAbi,
+          functionName: "createMarket",
           args: [
             cid,
-            formatValue,
             category,
+            oracleAddress,
             BigInt(deadlineSeconds),
-            fee,
-            stakeAmountWei,
+            platformFeeBps,
           ],
           account: address as Address,
         });
-
-        
 
         const hash = await wagmiWalletClient.writeContract(request);
         setTxHash(hash);
@@ -365,13 +238,13 @@ export function useCreatePrediction() {
         for (const log of receipt.logs) {
           try {
             const decoded = decodeEventLog({
-              abi: predictionRegistryAbi,
+              abi: predictionManagerAbi,
               data: log.data,
               topics: log.topics,
             });
-            if (decoded.eventName === "PredictionCreated") {
+            if (decoded.eventName === "MarketCreated") {
               predictionId = Number(
-                (decoded.args as { predictionId: bigint }).predictionId
+                (decoded.args as { marketId: bigint }).marketId
               );
               break;
             }

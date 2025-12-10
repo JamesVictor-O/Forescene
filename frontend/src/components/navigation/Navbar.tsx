@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
-import { Logo } from "./Logo";
+import Image from "next/image";
 import ConnectWalletButton from "@/components/shared/ConnectWalletButton";
 
 const Header: React.FC = () => {
@@ -13,7 +13,7 @@ const Header: React.FC = () => {
         {/* Logo Section */}
         <div className="flex items-center gap-3 text-white">
           <div className="text-primary h-8 w-8">
-            <Logo />
+            <Image width={100} height={100} alt="Logo" src={"/Logo2.png"} />
           </div>
           <h2 className="text-white text-lg font-bold leading-tight tracking-tight">
             Forescene

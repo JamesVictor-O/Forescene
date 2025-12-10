@@ -1,367 +1,130 @@
-# 🎥 Forescene
+# 🌍 Forescene: The Social Prediction Game
 
-**"Predict the Future. Prove You Were Right."**
+## 💡 Vision & Goal
 
-Forescene is a **decentralized social prediction platform** where users create **short-form video/text predictions** about real-world events from sports and crypto to pop culture and politics — and **earn rewards for accuracy and influence**.
+**Forescene** is the next-generation Social Prediction Game, blending the proven accuracy of prediction markets with the high engagement of gamified competition. We turn passion for **African entertainment, music, and culture** into a skill-based, competitive game build on the bnb and BlockDag blockchain.
 
-Think Of It As **TikTok meets Polymarket**, where your predictions build your reputation, your audience, and your on-chain portfolio.
-
----
-
-## 🌍 Vision
-
-To make Prediction Fun, Engaging And Rewarding
-
-The world is full of opinions, but there’s no proof of who was _actually right_ when things play out.
-
-**Forescene** turns _predictions_ into _digital assets_ — making it fun, social, and rewarding to call the future correctly.
-
-We’re building a future where:
-
-- Pridiction is gamified
-- Insight is rewarded.
-- Reputation is quantifiable.
-- Predictions become a form of expression, not just speculation.
-- People Put there money where there mouth is.
+**The Goal:** To become the most trusted and engaging platform for forecasting the future of African culture, transforming cultural expertise into verifiable status and reward.
 
 ---
 
-## 🎯 The Problem
+## ❌ The Problem Forescene Solves
 
-Prediction markets today are:
-- ❌ Prediction Platforms Are Too Complex for Mainstream Users
-- ❌ Financially driven, not socially engaging.
-- ❌ Lacking creator incentives or reputation systems.
-- ❌ There’s No Social Home for Prediction Culture
+Prediction markets are powerful, but their current form fails to reach mass audiences because they are:
 
-Meanwhile, millions of people on TikTok, X, and YouTube make bold predictions daily — but those insights are **lost in the feed**.  
-No one tracks accuracy. No one gets rewarded.
+* **Boring and Confusing:** They rely on complex financial language (options, derivatives) and complicated charts, feeling like a niche stock market.
+* **Too Focused on Global Finance:** They ignore high-interest, everyday passions, specifically neglecting the rapidly growing, youth-driven **African entertainment and media (E&M) sector** (Nigeria's E&M market is projected to grow at a 7.2% CAGR through 2029).
+* **Hard to Access:** They lack the mobile-first, simple interfaces required for broad adoption across African digital markets.
 
----
+### ✅ Our Solution: Forescene
 
-## 💡 The Forescene Solution
+Forescene changes prediction markets by making them a **simple, social game**:
 
-**Forescene** transforms predictions into short-form fun, engaging, verifiable content.
-
-Creators post **15–60 second prediction videos**, staking confidence points (or tokens) to prove belief.  
-When outcomes are verified, accurate predictors earn rewards and reputation — creating an economy of truth and foresight.
-
-- A Social Layer for Predictions
-- Skin-in-the-Game Engagement
-- Communities That Turn Insight Into Culture
-- Verified Outcomes & Reputation
+* **It's a Game, Not a Stock Market:** We replace financial stakes with **Knowledge Points (KP)**, **Leagues**, and **Duels** to make predicting outcomes competitive and fun.
+* **Culture First:** We focus exclusively on the most engaging topics in African entertainment and local trends, making predictions relevant to your daily life.
+* **Skill Rewarded:** The platform is engineered to reward **skill and timing**, not just bankroll size, fostering genuine expertise.
 
 ---
 
-## 🎮 How It Works
+## 🏆 Key Features & Gamification Engine
 
-### 👤 For Predictors (Creators)
+### 1. The Knowledge Point (KP) System
 
-1. **Record a Prediction Video or write your Prediction**
+The single, simple currency for all staking, rewards, and fees.
 
-   - Example: “BTC will hit $100K before December 31.”
-   - Add tags like `#crypto` or `#sports`.
-   - AI automatically extracts and structures your claim and verify if this Prediction is a verifiable one.
+* **Gamified Staking:** All stakes and rewards are denominated in **Knowledge Points (KP)**.
+* **Early Bird Bonus (Weighted Stakes):** Winnings are calculated based on **Weighted Stakes**. Users who make correct predictions **earlier** in the market cycle receive a higher weighted stake value, increasing their share of the final prize pool. This rewards true foresight and conviction.
 
-2. **Stake Your Confidence**
+### 2. The Prediction League & Tiers
 
-   - Lock in reputation points or tokens (optional in MVP).
-   - Higher stake = higher potential credibility and rewards.
+The core driver of engagement and status, based on weekly performance.
 
-3. **Earn Multiple Ways**
+* **Metric:** Ranking is determined by the **Forecasting Accuracy Score (FAS)**, a composite metric combining: **Accuracy (60%)**, **Weighted KP Gain (30%)**, and **Prediction Streaks (10%)**.
+* **Tiers:** Users are ranked into competitive tiers (Bronze, Silver, Gold, Diamond).
+* **The Cycle:** Ranks are recalculated weekly, driving high-frequency competition to achieve promotion and avoid relegation.
 
-   - 🎯 **Accuracy Rewards** – Earn when your prediction is right.
-   - 📈 **Influence Fees** – Earn when others back your predictions.
-   - 🌟 **Reputation Growth** – Build your verified “Prophet Score.”
-   - 🤝 **Sponsorships** – Top predictors attract brand deals.
+### 3. Duels and Social Play
 
-4. **Own Your Track Record**
-   - Every correct prediction adds to your _on-chain portfolio_.
-   - Your history becomes a tradeable **Prophet Portfolio NFT**.
+* **Head-to-Head Challenges:** Users can publicly challenge friends or rivals on specific markets.
+* **Profile Status:** User profiles prominently display their current League Tier, FAS, and Duel Win/Loss record.
 
----
+### 4. Market Quality Control
 
-### 💰 For Investors (Backers)
-
-1. **Discover Predictions**
-
-   - Scroll a TikTok-style feed of short videos/text.
-   - Filter by categories: Sports, Crypto, Entertainment, Politics, etc.
-
-2. **Back Predictions or Predictors**
-
-   - Bet on specific predictions you believe in or against.
-   - Or back entire predictor portfolios (trust the talent).
-   - Also decide to Reshare Prediction, which allows your folllowers to bet on that Prediction too. you earn the original creatore earns too
-
-3. **Trade Positions**
-
-   - Buy/sell your stakes as odds shift in real time.
-   - Early believers profit most.
-
-4. **Earn Returns**
-   - Correct predictions yield payouts and influence boosts.
+* **AI Validation:** An integrated AI module (Google Gemini) screens all user-submitted market questions for ambiguity, resolvability, and clarity, ensuring only high-quality markets are launched.
+* **Scout Rewards:** Users who submit high-quality, AI-validated market questions earn the **Scout Badge** and a royalty share of the initial liquidity fees.
 
 ---
 
-## ⚙️ Core System Architecture
+## 🛠️ Technology Stack & Architecture
 
-| Layer              | Tech                                  | Description                                                         |
-| ------------------ | ------------------------------------- | ------------------------------------------------------------------- |
-| **Frontend (App)** | Next.js (React, TypeScript, Tailwind) | Social video interface, wallet connection, and feed system.         |
-| **Contracts**      | Foundry (Solidity)                    | Smart contracts for staking, rewards, and portfolio NFTs.           |
-| **AI Layer**       | Whisper + GPT APIs                    | Extracts structured claims from video predictions for verification. |
-| **Oracles**        | Chainlink + Custom APIs               | Verifies event outcomes (sports, crypto, entertainment).            |
-| **Backend / DB**   | Node.js + Postgres                    | Manages user data, metadata, and event outcomes.                    |
-| **Blockchain**     | Base or Ethereum Layer 2              | Handles token logic and proof-of-accuracy records.                  |
+Forescene utilizes a **Hybrid Architecture**, combining the trust of smart contracts with the speed of a modern backend.
 
----
-
-## 🧩 Unique Features
-
-| Feature                          | Description                                                                            |
-| -------------------------------- | -------------------------------------------------------------------------------------- |
-| 🎥 **Video Predictions**         | Engage users with short-form video, not boring charts.                                 |
-| 🔮 **Prophet Portfolios (NFTs)** | Your prediction history as a verified, tradeable digital identity.                     |
-| ⚔️ **Prediction Battles**        | Two predictors make opposing calls; community decides who wins.                        |
-| 🎭 **Duet Predictions**          | Respond to others with counter-predictions — social, viral, competitive.               |
-| 👥 **Squad Mode**                | Form teams, pool knowledge, and share winnings.                                        |
-| 🧠 **Category Experts**          | Earn badges as verified authorities in niches (e.g., “Crypto Prophet,” “Sports Guru”). |
-| 💬 **Insider Bounties**          | Users post challenges: “Which team signs Mbappé? Winner gets 500 tokens.”              |
+| Component | Technology | Role |
+| :--- | :--- | :--- |
+| **Frontend** | React / Next.js | Modern, responsive web application (desktop and mobile-first UI). |
+| **Smart Contracts** | EVM-Compatible Solidity | Core logic for staking, settlement, the KP system, and weighted reward calculation. |
+| **Data Engine (Off-Chain)** | NodeJS, PostgreSQL | Handles complex, real-time calculations: **FAS Ranking, League Tier assignments,** and maintaining the global Leaderboard. |
+| **AI/Oracles** | Google Gemini (API) | Market validation, content categorization, and question improvement. |
+| **Styling** | Dark Mode (Vibrant Accents) | Implements the established professional, high-contrast, gamified aesthetic. |
 
 ---
 
-## 🧠 Technical Flow (Simplified)
-
-🎬 User uploads video
-↓
-🗣 Speech-to-text (Whisper)
-↓
-🤖 AI parses structured claim (event + condition + deadline)
-↓
-🧾 Claim stored on-chain (optional)
-↓
-📡 Oracle verifies outcome at deadline
-↓
-🏆 Rewards & reputation updated automatically,
-
----
-
-## 🧩 Tech Stack
-
-- **Frontend:** Next.js 15, React 19, Tailwind CSS
-- **Contracts:** Foundry, Solidity, Forge Std
-- **AI Services:** OpenAI Whisper, GPT-4o-mini
-- **Oracles:** Chainlink, Custom API feeds
-- **Database:** PostgreSQL + Prisma
-- **Deployment:** Vercel (Frontend), Base Testnet (Contracts)
-
----
-
-## 🚀 MVP Roadmap (Next 3 Months)
-
-| Phase       | Focus                     | Deliverable                              |
-| ----------- | ------------------------- | ---------------------------------------- |
-| **Month 1** | MVP foundation            | Next.js UI, wallet connect, video upload |
-| **Month 2** | Prediction logic          | AI parsing + backend claim verification  |
-| **Month 3** | Smart contracts + Rewards | Foundry contracts + on-chain reputation  |
-
----
-
-## 💬 Why It Matters
-
-Forescene blurs the line between _social media_ and _financial markets_ — making **truth, insight, and influence** a new form of digital currency.
-
-In a world full of noise, **Forescene** rewards clarity, foresight, and accuracy.
-
----
-
-## Architecture Diagram
-
-```mermaid
-%% Forescene architecture (Mermaid)
-flowchart LR
-  subgraph USER_LAYER["User / Social Layer"]
-    U1[Mobile App (Next.js / React)] -->|record video| V[Video Upload (IPFS CID)]
-    U1 -->|wallet actions| Wallet[Wallet (Metamask / WalletConnect)]
-    U1 -->|interact| Feed[Social Feed / Duets / Copy]
-  end
-
-  subgraph AI_LAYER["AI & Parsing"]
-    V --> STT[Speech-to-Text (Whisper)]
-    STT --> NLP[LLM Parser (extract: event, condition, deadline)]
-    NLP -->|structured claim| BackendAPI[Backend API]
-    NLP -->|flag/verifiability| VerifFilter[Verifiability Filter]
-  end
-
-  subgraph BACKEND_DB["Backend & Data Layer"]
-    BackendAPI --> DB[Postgres / Prisma (claims, users, social)]
-    BackendAPI --> SharedABI[Shared / exported ABIs & metadata]
-    BackendAPI --> EventQueue[Event Queue / Worker (resolve jobs)]
-    DB -->|feeds feed UI| Feed
-  end
-
-  subgraph ONCHAIN["Smart Contracts (Foundry)"]
-    style ONCHAIN stroke:#333,stroke-width:2px
-    PredictionRegistry[core/PredictionRegistry.sol]
-    PredictionMarket[core/PredictionMarket.sol]
-    ResolutionOracle[core/ResolutionOracle.sol]
-    ProphetPortfolio[core/ProphetPortfolio.sol (ERC721)]
-    SocialMetrics[core/SocialMetrics.sol]
-    FSPausable[core/FSPausable.sol]
-    FeeRouter[core/FeeRouter.sol]
-    TemplateRegistry[core/TemplateRegistry.sol]
-    Treasury[core/Treasury.sol]
-    InsurancePool[core/InsurancePool.sol]
-    PriceFeedRouter[core/PriceFeedRouter.sol]
-    CreatorStaking[core/CreatorStaking.sol]
-    Squad[core/Squad.sol]
-    PredictionPosition[core/PredictionPosition.sol (ERC1155)]
-    FraudDetection[core/FraudDetection.sol]
-    CrossChainBridge[core/CrossChainBridge.sol]
-    Governance[governance/CreatorDAO.sol]
-  end
-
-  %% Connections between backend and contracts
-  BackendAPI -->|create & sign tx| PredictionRegistry
-  Wallet -->|tx: create / stake / trade| PredictionMarket
-  PredictionMarket --> FeeRouter
-  FeeRouter --> Treasury
-  PredictionRegistry --> TemplateRegistry
-  ResolutionOracle -->|resolve call| PredictionMarket
-  ResolutionOracle -->|finalize| PredictionRegistry
-  PredictionMarket -->|mint position NFT| PredictionPosition
-  PredictionRegistry --> ProphetPortfolio
-  ProphetPortfolio --> SharedABI
-  SocialMetrics --> DB
-  CreatorStaking --> ProphetPortfolio
-  Squad --> Treasury
-  InsurancePool --> Treasury
-  PriceFeedRouter --> ResolutionOracle
-  PriceFeedRouter -->|price feeds| Chainlink[Chainlink / Pyth / Custom APIs]
-  Chainlink --> ResolutionOracle
-
-  %% Oracles and external data
-  subgraph ORACLES["External Oracles & Data"]
-    Chainlink
-    SportsAPI[Sports APIs]
-    BoxOffice[BoxOffice / Streaming APIs]
-    Government[Official Results / Government Data]
-  end
-
-  Chainlink --> PriceFeedRouter
-  SportsAPI --> PriceFeedRouter
-  BoxOffice --> PriceFeedRouter
-  Government --> PriceFeedRouter
-
-  %% Event resolution flow
-  EventQueue --> ResolutionOracle
-  ResolutionOracle -->|dispute window| Dispute[Dispute Module / Bonding]
-  Dispute --> InsurancePool
-  Dispute --> Governance
-
-  %% Social / UX loops
-  PredictionMarket -->|events/emits| BackendAPI
-  BackendAPI -->|update user stats| DB
-  DB --> Feed
-
-  %% Admin / Governance
-  Governance --> TemplateRegistry
-  Governance --> FeeRouter
-  Governance --> Treasury
-  Governance --> ResolutionOracle
-```
-
-## 🧑‍💻 Development Setup
+## 🧑‍💻 Get Started (For Developers)
 
 ### Prerequisites
 
-- Node.js v18+
-- pnpm or npm
-- Foundry (`curl -L https://foundry.paradigm.xyz | bash`)
+* Node.js (LTS version)
+* Yarn or npm
+* EVM development environment (Hardhat/Foundry)
+* A Google Gemini API key (for the AI Validation module)
 
-### Setup Steps
+### Installation
 
-```bash
-# Clone the repo
-git clone https://github.com/<your-username>/forescene.git
-cd forescene
+1.  **Clone the repository:**
+    ```bash
+    git clone [Your Repository URL]
+    cd forescene
+    ```
 
-# Install frontend
-cd frontend
-pnpm install
-pnpm dev
+2.  **Install dependencies:**
+    ```bash
+    yarn install
+    # or
+    npm install
+    ```
 
-# Install contracts
-cd ../contracts
-forge build
+3.  **Set up Environment Variables:**
+    Create a `.env` file in the root directory and configure the necessary keys:
+    ```
+    # API Configuration
+    NEXT_PUBLIC_API_URL=[Your Backend URL]
+    GEMINI_API_KEY=[Your Gemini API Key]
 
-```
+    # Smart Contract Deployment
+    EVM_NETWORK_URL=[Your Preferred Network RPC]
+    WALLET_PRIVATE_KEY=[Deployment Wallet Key]
+    ```
 
-## 🚀 Deploying to BNB Testnet
+### Running the Development Server
 
-### 1. Configure environment variables
+1.  **Start the frontend:**
+    ```bash
+    yarn dev
+    # or
+    npm run dev
+    ```
+    The application will be accessible at `http://localhost:3000`.
 
-Create a `contracts/.env` file (do **not** commit this) with:
+2.  **Smart Contract Deployment (Example):**
+    ```bash
+    npx hardhat compile
+    npx hardhat run scripts/deploy.js --network [Your Network Name]
+    ```
 
-```bash
-PRIVATE_KEY=0xYourDeployerPrivateKey
-BSC_TESTNET_RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545
-BSCSCAN_API_KEY=your_bscscan_api_key
-```
+---
 
-For the frontend, create `frontend/.env.local` after deployment and supply the contract addresses:
+## 🤝 Contribution & License
 
-```bash
-NEXT_PUBLIC_CHAIN_ID=97
-NEXT_PUBLIC_PREDICTION_REGISTRY_ADDRESS=0x...
-NEXT_PUBLIC_PREDICTION_MARKET_ADDRESS=0x...
-NEXT_PUBLIC_RESOLUTION_ORACLE_ADDRESS=0x...
-NEXT_PUBLIC_SOCIAL_METRICS_ADDRESS=0x...
-NEXT_PUBLIC_PROPHET_PORTFOLIO_ADDRESS=0x...
-```
+We welcome contributions! Please fork the repository, create a feature branch, and submit a detailed Pull Request.
 
-### 2. Deploy the contracts
-
-Fund the deployer wallet with testnet BNB, then run:
-
-```bash
-cd contracts
-source .env
-
-forge script script/Deploy.s.sol:Deploy \
-  --rpc-url "$BSC_TESTNET_RPC_URL" \
-  --chain 97 \
-  --broadcast \
-  --verify \
-  -vvvv
-```
-
-The script prints the deployed addresses for the token, registry, market, oracle, portfolio, and social metrics contracts.
-
-### 3. (Optional) Contract verification
-
-Use Foundry’s verify command with the address from step 2:
-
-```bash
-forge verify-contract \
-  --chain 97 \
-  --num-of-optimizations 200 \
-  --watch \
-  <DEPLOYED_CONTRACT_ADDRESS> \
-  src/core/PredictionRegistry.sol:PredictionRegistry
-```
-
-Repeat for other contracts as needed.
-
-### 4. Configure the frontend and deploy
-
-Set the `NEXT_PUBLIC_*` values in `frontend/.env.local`, then rebuild:
-
-```bash
-cd ../frontend
-npm install
-npm run build
-```
-
-When deploying to Vercel, use `frontend` as the root directory and copy the same environment variables into the project settings.
+* **License:** Distributed under the MIT License. See `LICENSE` for more information.

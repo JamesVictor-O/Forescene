@@ -1,5 +1,4 @@
-import React from "react";
-import { Logo } from "../navigation/Logo";
+import Image from "next/image";
 
 const Footer: React.FC = () => {
   return (
@@ -8,7 +7,7 @@ const Footer: React.FC = () => {
         {/* Brand */}
         <div className="flex items-center gap-3 text-white">
           <div className="text-primary h-6 w-6">
-            <Logo />
+            <Image src={"/Logo2.png"} alt="Logo" width={100} height={100}/>
           </div>
           <h2 className="text-white text-lg font-bold tracking-tight">
             Forescene
