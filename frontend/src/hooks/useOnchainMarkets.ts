@@ -5,11 +5,14 @@ import { getContract, getNetworkConfig } from "@/config/contracts";
 
 export type OnchainMarket = {
   id: number;
-  contentCID: string;
+  marketType?: number;
+  question: string;
   category: string;
   oracle: string;
   deadlineTimestamp: number;
-  status: number; // 0 ACTIVE, 1 LOCKED, 2 RESOLVED
+  status: number;
+  totalStaked?: bigint;
+  initialOutcomeLabel?: string;
 };
 
 const BLOCKDAG_RPC = "https://rpc.awakening.bdagscan.com";
@@ -57,18 +60,21 @@ export function useOnchainMarkets() {
             })) as any;
             return {
               id,
-              oracle: m[0],
-              deadlineTimestamp: Number(m[2]),
-              totalYesStakedRaw: m[3],
-              totalNoStakedRaw: m[4],
-              totalYesStakedWeighted: m[5],
-              totalNoStakedWeighted: m[6],
-              platformFeeBps: m[7],
-              status: Number(m[8]),
-              winningOutcome: Number(m[9]),
-              contentCID: m[10],
-              category: m[11],
-              creator: m[12],
+              marketType: Number(m[0]),
+              oracle: m[1],
+              marketStartTimestamp: Number(m[2]),
+              deadlineTimestamp: Number(m[3]),
+              totalYesStakedRaw: m[4],
+              totalNoStakedRaw: m[5],
+              totalYesStakedWeighted: m[6],
+              totalNoStakedWeighted: m[7],
+              platformFeeBps: m[8],
+              status: Number(m[9]),
+              winningOutcome: Number(m[10]),
+              question: m[11] || "",
+              category: m[12] || "",
+              initialOutcomeLabel: m[13] || "",
+              creator: m[14],
             };
           } catch (err) {
             return null;
@@ -79,14 +85,21 @@ export function useOnchainMarkets() {
       const active = results
         .filter(Boolean)
         .filter((m) => (m as any).status === 0)
-        .map((m) => ({
-          id: (m as any).id,
-          contentCID: (m as any).contentCID,
-          category: (m as any).category,
-          oracle: (m as any).oracle,
-          deadlineTimestamp: (m as any).deadlineTimestamp,
-          status: (m as any).status,
-        }));
+        .map((m) => {
+          const yesStaked = (m as any).totalYesStakedRaw || BigInt(0);
+          const noStaked = (m as any).totalNoStakedRaw || BigInt(0);
+          return {
+            id: (m as any).id,
+            marketType: (m as any).marketType ?? 1, // Default to Binary if not set
+            question: (m as any).question || "",
+            category: (m as any).category || "",
+            oracle: (m as any).oracle || "",
+            deadlineTimestamp: (m as any).deadlineTimestamp,
+            status: (m as any).status,
+            totalStaked: yesStaked + noStaked,
+            initialOutcomeLabel: (m as any).initialOutcomeLabel || "",
+          };
+        });
 
       setMarkets(active);
     } catch (e: any) {

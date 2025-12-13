@@ -3,29 +3,24 @@ pragma solidity ^0.8.24;
 
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
-/**
- * @title Pausable
- * @notice Simple pausable functionality
- * @dev Can be inherited by contracts that need pause functionality
- */
-abstract contract FSPausable is Ownable {
-    constructor(address initialOwner) Ownable(initialOwner) {}
 
+abstract contract FSPausable is Ownable {
     bool private _paused;
 
     event Paused(address account);
     event Unpaused(address account);
 
-    error ContractPaused();
-    error ContractNotPaused();
+    constructor(address initialOwner) Ownable(initialOwner) {
+        _paused = false;
+    }
 
     modifier whenNotPaused() {
-        if (_paused) revert ContractPaused();
+        require(!_paused, "FSPausable: paused");
         _;
     }
 
     modifier whenPaused() {
-        if (!_paused) revert ContractNotPaused();
+        require(_paused, "FSPausable: not paused");
         _;
     }
 
@@ -33,12 +28,12 @@ abstract contract FSPausable is Ownable {
         return _paused;
     }
 
-    function pause() external onlyOwner whenNotPaused {
+    function pause() public onlyOwner whenNotPaused {
         _paused = true;
         emit Paused(msg.sender);
     }
 
-    function unpause() external onlyOwner whenPaused {
+    function unpause() public onlyOwner whenPaused {
         _paused = false;
         emit Unpaused(msg.sender);
     }

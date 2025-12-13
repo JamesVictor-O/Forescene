@@ -11,6 +11,8 @@ import {
   Edit2,
   Activity,
   Plus,
+  Menu,
+  X,
 } from "lucide-react";
 
 export const Icons = {
@@ -25,6 +27,8 @@ export const Icons = {
   Edit: Edit2,
   Logo: Activity,
   Plus: Plus,
+  Menu: Menu,
+  X: X,
 };
 
 export type IconComponent = React.ComponentType<React.SVGProps<SVGSVGElement>>;

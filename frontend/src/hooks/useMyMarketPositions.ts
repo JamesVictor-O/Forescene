@@ -50,7 +50,7 @@ export function useMyMarketPositions(
               address: predictionManager.address,
               abi: predictionManagerAbi,
               functionName: "userStakes",
-              args: [BigInt(m.id), account],
+              args: [BigInt(m.id), account as `0x${string}`],
             })) as any;
             return {
               marketId: m.id,
@@ -79,3 +79,5 @@ export function useMyMarketPositions(
 
   return { positions, loading, error, refetch: fetchPositions };
 }
+
+

@@ -28,6 +28,8 @@ export type CreatePredictionStep =
   | "idle"
   | "validating"
   | "uploading"
+  | "checking-allowance"
+  | "approving"
   | "submitting"
   | "waiting"
   | "success"
@@ -207,21 +209,23 @@ export function useCreatePrediction() {
         throw new Error("Unable to determine content CID.");
       }
 
-      // Create market/prediction via PredictionManager
       setStep("submitting");
 
       try {
+        const question = input.title || cid;
         const { request } = await publicClient.simulateContract({
           address: predictionManager.address,
           abi: predictionManagerAbi,
           functionName: "createMarket",
           args: [
-            cid,
+            1,
+            question,
             category,
-            oracleAddress,
             BigInt(deadlineSeconds),
-            platformFeeBps,
-          ],
+            BigInt(0),
+            0,
+            "",
+          ] as any,
           account: address as Address,
         });
 
@@ -248,9 +252,7 @@ export function useCreatePrediction() {
               );
               break;
             }
-          } catch {
-            // Ignore non-matching logs
-          }
+          } catch {}
         }
 
         await queryClient.invalidateQueries({

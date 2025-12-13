@@ -20,7 +20,10 @@ contract PredictionManager is Ownable, ReentrancyGuard {
 
   
 
+    enum MarketType { CrowdWisdom, Binary }
+    
     struct Market {
+        MarketType marketType;
         address oracle;
         uint256 marketStartTimestamp;
         uint256 deadlineTimestamp;
@@ -31,8 +34,9 @@ contract PredictionManager is Ownable, ReentrancyGuard {
         uint256 platformFeeBps; 
         Status status;
         Outcome winningOutcome;
-        string contentCID; 
+        string question; 
         string category;
+        string initialOutcomeLabel;
         address creator;
     }
 
@@ -51,9 +55,12 @@ contract PredictionManager is Ownable, ReentrancyGuard {
 
     mapping(uint256 => Market) public markets;
     mapping(uint256 => mapping(address => UserStake)) public userStakes;
+    mapping(uint256 => string[]) public marketOutcomes; 
+    mapping(uint256 => mapping(string => uint256)) public outcomeToIndex; 
+    mapping(uint256 => mapping(uint256 => uint256)) public outcomePoolAmounts; 
+    mapping(uint256 => mapping(address => mapping(uint256 => uint256))) public userOutcomeStakes; 
+    mapping(uint256 => uint256) public maxOutcomesPerMarket; 
     
-    // --- ERRORS ---
-
     error UnauthorizedOracle();
     error InvalidMarketStatus();
     error InvalidStakeAmount();
@@ -64,7 +71,6 @@ contract PredictionManager is Ownable, ReentrancyGuard {
     error UnauthorizedCaller();
     error FeeBurnFailed(); // Added for clarity
 
-    // --- CONSTRUCTOR & ADMIN ---
 
     constructor(address initialOwner, address _kpTokenAddress, address _treasuryAddress) 
         Ownable(initialOwner) {
@@ -78,23 +84,41 @@ contract PredictionManager is Ownable, ReentrancyGuard {
 
  
     function createMarket(
-        string memory _contentCID,
+        MarketType _marketType,
+        string memory _question,
         string memory _category,
-        address _oracle,
-        uint256 _deadlineTimestamp,
-        uint256 _platformFeeBps // e.g., 500 for 5%
-    ) external returns (uint256 marketId) {
-        require(_deadlineTimestamp > block.timestamp, "Deadline must be in the future");
-        require(_platformFeeBps <= BASIS_POINTS, "Fee too high");
+        uint256 _endTime,
+        uint256 _initialStake,
+        uint8 _initialSide,
+        string memory _initialOutcomeLabel
+    ) external nonReentrant returns (uint256 marketId) {
+        require(bytes(_question).length > 0, "MarketFactory: empty question");
+        require(bytes(_category).length > 0, "MarketFactory: empty category");
+        require(_endTime > block.timestamp, "MarketFactory: invalid end time");
+        require(_endTime <= block.timestamp + 365 days, "MarketFactory: end time too far");
+        require(_initialStake > 0, "MarketFactory: initial stake required");
+
+        if (_marketType == MarketType.CrowdWisdom) {
+            require(bytes(_initialOutcomeLabel).length > 0, "MarketFactory: CrowdWisdom requires initial outcome");
+        }
+
+     
+        kpToken.safeTransferFrom(msg.sender, address(this), _initialStake);
 
         marketId = nextMarketId++;
         
+       
+        address _oracle = msg.sender;
+        uint256 _platformFeeBps = 500;
+        
+    
         markets[marketId] = Market({
-            contentCID: _contentCID,
+            marketType: _marketType,
+            question: _question,
             category: _category,
             oracle: _oracle,
             marketStartTimestamp: block.timestamp,
-            deadlineTimestamp: _deadlineTimestamp,
+            deadlineTimestamp: _endTime,
             totalYesStakedRaw: 0,
             totalNoStakedRaw: 0,
             totalYesStakedWeighted: 0,
@@ -102,15 +126,63 @@ contract PredictionManager is Ownable, ReentrancyGuard {
             platformFeeBps: _platformFeeBps,
             status: Status.ACTIVE,
             winningOutcome: Outcome.INVALID,
+            initialOutcomeLabel: _initialOutcomeLabel,
             creator: msg.sender
         });
 
-        emit MarketCreated(marketId, msg.sender, _contentCID, _category, _deadlineTimestamp);
+        // Place the initial stake based on market type
+        Market storage newMarket = markets[marketId];
+        uint256 multiplier = _calculateWeightMultiplier(newMarket);
+        uint256 weightedAmount = _initialStake * multiplier / BASIS_POINTS;
+
+        if (_marketType == MarketType.Binary) {
+            // Binary market: use Yes/No
+            Outcome initialChoice = _initialSide == 0 ? Outcome.YES : Outcome.NO;
+            
+            if (initialChoice == Outcome.YES) {
+                newMarket.totalYesStakedRaw = _initialStake;
+                newMarket.totalYesStakedWeighted = weightedAmount;
+            } else {
+                newMarket.totalNoStakedRaw = _initialStake;
+                newMarket.totalNoStakedWeighted = weightedAmount;
+            }
+
+            // Record the creator's initial stake
+            UserStake memory initialStake = UserStake({
+                yesAmountWeighted: initialChoice == Outcome.YES ? weightedAmount : 0,
+                noAmountWeighted: initialChoice == Outcome.NO ? weightedAmount : 0,
+                yesAmountRaw: initialChoice == Outcome.YES ? _initialStake : 0,
+                noAmountRaw: initialChoice == Outcome.NO ? _initialStake : 0,
+                claimed: false
+            });
+            userStakes[marketId][msg.sender] = initialStake;
+
+            emit PredictionPlaced(marketId, msg.sender, initialChoice, _initialStake, weightedAmount, multiplier);
+        } else {
+            // CrowdWisdom market: create first outcome
+            maxOutcomesPerMarket[marketId] = 50; // Default max outcomes
+            
+            string memory normalizedLabel = _normalizeString(_initialOutcomeLabel);
+            require(bytes(normalizedLabel).length > 0, "PredictionManager: invalid outcome label");
+            
+            marketOutcomes[marketId].push(normalizedLabel);
+            outcomeToIndex[marketId][normalizedLabel] = 0;
+            outcomePoolAmounts[marketId][0] = _initialStake;
+            userOutcomeStakes[marketId][msg.sender][0] = _initialStake;
+            
+            // Also update total pools for compatibility
+            newMarket.totalYesStakedRaw = _initialStake;
+            newMarket.totalYesStakedWeighted = weightedAmount;
+
+            emit OutcomeCreated(marketId, 0, normalizedLabel);
+            emit PredictionPlaced(marketId, msg.sender, Outcome.YES, _initialStake, weightedAmount, multiplier);
+        }
+
+        emit MarketCreated(marketId, msg.sender, _question, _category, _endTime);
     }
     
     // --- WEIGHTED STAKE CALCULATION (Early Bird Bonus) ---
 
-    /// @notice Calculates the bonus multiplier based on time elapsed.
     function _calculateWeightMultiplier(Market storage market) 
         internal view returns (uint256 multiplier) 
     {
@@ -130,7 +202,7 @@ contract PredictionManager is Ownable, ReentrancyGuard {
 
     // --- STAKING ---
 
-    /// @notice Places a prediction stake on a market.
+    /// @notice Places a prediction stake on a Binary market.
     function placePrediction(uint256 marketId, Outcome _choice, uint256 _amount) 
         external nonReentrant 
     {
@@ -140,15 +212,12 @@ contract PredictionManager is Ownable, ReentrancyGuard {
         if (block.timestamp >= market.deadlineTimestamp) revert DeadlineExceeded();
         if (_amount == 0) revert InvalidStakeAmount();
         if (_choice != Outcome.YES && _choice != Outcome.NO) revert InvalidOutcome();
+        require(market.marketType == MarketType.Binary, "PredictionManager: use commentAndStake for CrowdWisdom");
 
-        // 1. Token Transfer (from user to this contract)
         kpToken.safeTransferFrom(msg.sender, address(this), _amount);
 
-        // 2. Calculate Weighted Stake
         uint256 multiplier = _calculateWeightMultiplier(market);
         uint256 weightedAmount = _amount * multiplier / BASIS_POINTS;
-
-        // 3. Update Storage
         UserStake storage userStake = userStakes[marketId][msg.sender];
 
         if (_choice == Outcome.YES) {
@@ -163,7 +232,6 @@ contract PredictionManager is Ownable, ReentrancyGuard {
             userStake.noAmountRaw += _amount;
         }
 
-        // 4. Emit Event
         emit PredictionPlaced(
             marketId, 
             msg.sender, 
@@ -172,6 +240,104 @@ contract PredictionManager is Ownable, ReentrancyGuard {
             weightedAmount,
             multiplier
         );
+    }
+
+    function commentAndStake(
+        uint256 marketId,
+        string memory outcomeLabel,
+        uint256 amount
+    ) external nonReentrant returns (uint256 outcomeIndex) {
+        Market storage market = markets[marketId];
+        
+        require(market.deadlineTimestamp > 0, "PredictionManager: market does not exist");
+        require(market.marketType == MarketType.CrowdWisdom, "PredictionManager: use placePrediction for Binary");
+        if (market.status != Status.ACTIVE) revert InvalidMarketStatus();
+        if (block.timestamp >= market.deadlineTimestamp) revert DeadlineExceeded();
+        if (amount == 0) revert InvalidStakeAmount();
+        require(bytes(outcomeLabel).length > 0, "PredictionManager: empty outcome label");
+        
+        string memory normalized = _normalizeString(outcomeLabel);
+        require(bytes(normalized).length > 0, "PredictionManager: invalid outcome label");
+        
+        // Check if outcome already exists
+        bool outcomeExists = false;
+        uint256 existingIndex = 0;
+        
+        for (uint256 i = 0; i < marketOutcomes[marketId].length; i++) {
+            if (keccak256(bytes(marketOutcomes[marketId][i])) == keccak256(bytes(normalized))) {
+                outcomeExists = true;
+                existingIndex = i;
+                break;
+            }
+        }
+        
+        if (outcomeExists) {
+            outcomeIndex = existingIndex;
+        } else {
+            // New outcome - check limits and create
+            uint256 maxOutcomes = maxOutcomesPerMarket[marketId];
+            require(
+                maxOutcomes == 0 || marketOutcomes[marketId].length < maxOutcomes,
+                "PredictionManager: max outcomes reached"
+            );
+            
+            outcomeIndex = marketOutcomes[marketId].length;
+            marketOutcomes[marketId].push(normalized);
+            outcomeToIndex[marketId][normalized] = outcomeIndex;
+            
+            emit OutcomeCreated(marketId, outcomeIndex, normalized);
+        }
+        
+        // Transfer tokens
+        kpToken.safeTransferFrom(msg.sender, address(this), amount);
+        
+        // Calculate weighted amount
+        uint256 multiplier = _calculateWeightMultiplier(market);
+        uint256 weightedAmount = amount * multiplier / BASIS_POINTS;
+        
+        // Update pools
+        outcomePoolAmounts[marketId][outcomeIndex] += amount;
+        userOutcomeStakes[marketId][msg.sender][outcomeIndex] += amount;
+        
+        // Update market totals (using yes pool for compatibility)
+        market.totalYesStakedRaw += amount;
+        market.totalYesStakedWeighted += weightedAmount;
+        
+        emit PredictionPlaced(marketId, msg.sender, Outcome.YES, amount, weightedAmount, multiplier);
+        return outcomeIndex;
+    }
+
+    /// @notice Stake on existing outcome in CrowdWisdom market
+    function stakeOnOutcome(
+        uint256 marketId,
+        uint256 outcomeIndex,
+        uint256 amount
+    ) external nonReentrant {
+        Market storage market = markets[marketId];
+        
+        require(market.deadlineTimestamp > 0, "PredictionManager: market does not exist");
+        require(market.marketType == MarketType.CrowdWisdom, "PredictionManager: use placePrediction for Binary");
+        if (market.status != Status.ACTIVE) revert InvalidMarketStatus();
+        if (block.timestamp >= market.deadlineTimestamp) revert DeadlineExceeded();
+        if (amount == 0) revert InvalidStakeAmount();
+        require(outcomeIndex < marketOutcomes[marketId].length, "PredictionManager: invalid outcome index");
+        
+        // Transfer tokens
+        kpToken.safeTransferFrom(msg.sender, address(this), amount);
+        
+        // Calculate weighted amount
+        uint256 multiplier = _calculateWeightMultiplier(market);
+        uint256 weightedAmount = amount * multiplier / BASIS_POINTS;
+        
+        // Update pools
+        outcomePoolAmounts[marketId][outcomeIndex] += amount;
+        userOutcomeStakes[marketId][msg.sender][outcomeIndex] += amount;
+        
+        // Update market totals
+        market.totalYesStakedRaw += amount;
+        market.totalYesStakedWeighted += weightedAmount;
+        
+        emit PredictionPlaced(marketId, msg.sender, Outcome.YES, amount, weightedAmount, multiplier);
     }
     
     // --- MARKET RESOLUTION ---
@@ -238,11 +404,8 @@ contract PredictionManager is Ownable, ReentrancyGuard {
           
         }
 
-
-        // 3. Transfer Total Winnings (User's original stake + Net Reward)
         uint256 totalTransferAmount = userRawStake + finalPayout;
 
-        // Payout is sent from the contract's internal balance
         kpToken.safeTransfer(msg.sender, totalTransferAmount); 
 
         userStake.claimed = true;
@@ -255,7 +418,7 @@ contract PredictionManager is Ownable, ReentrancyGuard {
       event MarketCreated(
         uint256 indexed marketId,
         address indexed creator,
-        string contentCID,
+        string question,
         string category,
         uint256 deadline
     );
@@ -277,4 +440,86 @@ contract PredictionManager is Ownable, ReentrancyGuard {
         uint256 totalTransferAmount,
         uint256 netReward
     );
+    
+    event OutcomeCreated(
+        uint256 indexed marketId,
+        uint256 indexed outcomeIndex,
+        string outcomeLabel
+    );
+
+    // --- VIEW FUNCTIONS FOR CROWDWISDOM ---
+    
+    function getMarketOutcomes(uint256 marketId) external view returns (string[] memory outcomes, uint256[] memory outcomePools) {
+        Market storage market = markets[marketId];
+        require(market.deadlineTimestamp > 0, "PredictionManager: market does not exist");
+        require(market.marketType == MarketType.CrowdWisdom, "PredictionManager: not a CrowdWisdom market");
+        
+        uint256 length = marketOutcomes[marketId].length;
+        outcomes = new string[](length);
+        outcomePools = new uint256[](length);
+        
+        for (uint256 i = 0; i < length; i++) {
+            outcomes[i] = marketOutcomes[marketId][i];
+            outcomePools[i] = outcomePoolAmounts[marketId][i];
+        }
+        
+        return (outcomes, outcomePools);
+    }
+    
+    function getOutcomeLabel(uint256 marketId, uint256 outcomeIndex) external view returns (string memory) {
+        Market storage market = markets[marketId];
+        require(market.deadlineTimestamp > 0, "PredictionManager: market does not exist");
+        require(market.marketType == MarketType.CrowdWisdom, "PredictionManager: not a CrowdWisdom market");
+        require(outcomeIndex < marketOutcomes[marketId].length, "PredictionManager: invalid outcome index");
+        return marketOutcomes[marketId][outcomeIndex];
+    }
+    
+    function getUserOutcomeStake(uint256 marketId, address user, uint256 outcomeIndex) external view returns (uint256) {
+        return userOutcomeStakes[marketId][user][outcomeIndex];
+    }
+    
+    function getOutcomePoolAmount(uint256 marketId, uint256 outcomeIndex) external view returns (uint256) {
+        return outcomePoolAmounts[marketId][outcomeIndex];
+    }
+    
+
+    function _normalizeString(string memory label) internal pure returns (string memory) {
+        bytes memory labelBytes = bytes(label);
+        bytes memory result = new bytes(labelBytes.length);
+        
+        uint256 resultLength = 0;
+        bool skipSpace = true;
+        
+        for (uint256 i = 0; i < labelBytes.length; i++) {
+            bytes1 char = labelBytes[i];
+           
+            if (char >= 0x41 && char <= 0x5A) {
+                char = bytes1(uint8(char) + 32);
+            }
+            
+            if (char == 0x20) {
+                if (!skipSpace) {
+                    result[resultLength] = char;
+                    resultLength++;
+                    skipSpace = true;
+                }
+            } else {
+                result[resultLength] = char;
+                resultLength++;
+                skipSpace = false;
+            }
+        }
+        
+  
+        while (resultLength > 0 && result[resultLength - 1] == 0x20) {
+            resultLength--;
+        }
+        
+        bytes memory finalResult = new bytes(resultLength);
+        for (uint256 i = 0; i < resultLength; i++) {
+            finalResult[i] = result[i];
+        }
+        
+        return string(finalResult);
+    }
 }

@@ -97,7 +97,7 @@ export const CONTRACTS = {
       abi: knowledgePointTokenAbi,
     },
     predictionManager: {
-      address: "0x61F8AaE3781498090f878151Ffb750fDcEe70a20",
+      address: "0x01D9654C521e955A1Ef98B8A5FdAbC5976Dc5B50",
       abi: predictionManagerAbi,
     },
   },
