@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Mark thread-stream as external to avoid processing test files
+  serverExternalPackages: ["thread-stream"],
 };
 
 export default nextConfig;
