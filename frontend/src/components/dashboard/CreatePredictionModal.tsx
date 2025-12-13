@@ -168,7 +168,7 @@ export default function CreatePredictionModal({
   onClose,
 }: CreatePredictionModalProps) {
   const { ready, authenticated } = usePrivy();
-  const { isConnected } = useAccount();
+  const { isConnected, address } = useAccount();
   const {
     createPrediction,
     isCreating,
@@ -242,8 +242,7 @@ export default function CreatePredictionModal({
       format,
       category: resolvedCategory,
       deadline: Math.floor(deadlineSeconds / 1000),
-      creatorFeeBps: 0, // Use default fee (250 bps = 2.5%)
-      creatorStake: stakeAmount,
+      oracle: address || "", // Use connected wallet address as oracle
       title: title.trim() || undefined,
       summary: summary.trim() || undefined,
       existingCid: useExistingCid ? existingCid.trim() : undefined,

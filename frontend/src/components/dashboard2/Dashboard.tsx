@@ -1,279 +1,33 @@
 import { Icons } from "./ui/Icon";
-import Image from "next/image";
 import {
   CURRENT_USER,
-  PREDICTIONS,
   LEAGUE_MEMBERS,
   ACTIVITIES,
-} from "./constants";
-import { NavItem } from "./types";
-import FeaturedSection from "./feed/FeaturedSection";
-import FeedPredictionCard from "./feed/PredictionCard";
-import {
   FEATURED_ITEMS,
-  PREDICTION_FEED,
   LEADERBOARD_PLAYERS,
 } from "./constants";
+import FeaturedSection from "./feed/FeaturedSection";
 import Leaderboard from "./leaderboard/Leaderboard";
 import StatsCard from "./leaderboard/StatsCard";
 import CreatePredictionModal from "./create/CreatePredictionModal";
 import { useOnchainMarkets } from "@/hooks/useOnchainMarkets";
-import { knowledgePointTokenAbi } from "@/abis/knowledgePointToken";
-import { predictionManagerAbi } from "@/abis/predictionManager";
 import { getContract, getNetworkConfig } from "@/config/contracts";
-import { custom, createPublicClient, createWalletClient, http } from "viem";
+import { createPublicClient, http } from "viem";
+import { knowledgePointTokenAbi } from "@/abis/knowledgePointToken";
+
+const BLOCKDAG_RPC = "https://rpc.awakening.bdagscan.com";
 import { useMemo, useState, useEffect } from "react";
-import Button from "./ui/Button";
-import Input from "./ui/Input";
 import { usePrivy } from "@privy-io/react-auth";
 import { OnchainMarket } from "@/hooks/useOnchainMarkets";
 import { useMyMarketPositions } from "@/hooks/useMyMarketPositions";
-
-const BLOCKDAG_RPC = "https://rpc.awakening.bdagscan.com";
-const BLOCKDAG_HEX_CHAIN_ID = "0x413"; // 1043
-
-const MarketCard: React.FC<{
-  market: OnchainMarket;
-  onPlaced?: () => void;
-}> = ({ market, onPlaced }) => {
-  const [amount, setAmount] = useState<string>("10");
-  const [loading, setLoading] = useState<"YES" | "NO" | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  const [tx, setTx] = useState<string | null>(null);
-
-  const kpToken = useMemo(() => getContract("kpToken"), []);
-  const predictionManager = useMemo(() => getContract("predictionManager"), []);
-  const chainId = getNetworkConfig().chainId;
-
-  const handleStake = async (outcome: "YES" | "NO") => {
-    setErr(null);
-    setTx(null);
-    if (!amount || Number(amount) <= 0) {
-      setErr("Enter an amount greater than 0");
-      return;
-    }
-    if (typeof window === "undefined" || !(window as any).ethereum) {
-      setErr("Wallet not found. Please connect a wallet.");
-      return;
-    }
-    const ethereum = (window as any).ethereum;
-    try {
-      setLoading(outcome);
-      // ensure chain
-      const currentChain = await ethereum.request({ method: "eth_chainId" });
-      if (currentChain?.toLowerCase() !== BLOCKDAG_HEX_CHAIN_ID) {
-        try {
-          await ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: BLOCKDAG_HEX_CHAIN_ID }],
-          });
-        } catch (switchErr: any) {
-          if (switchErr?.code === 4902) {
-            await ethereum.request({
-              method: "wallet_addEthereumChain",
-              params: [
-                {
-                  chainId: BLOCKDAG_HEX_CHAIN_ID,
-                  chainName: getNetworkConfig().name,
-                  rpcUrls: [BLOCKDAG_RPC],
-                  nativeCurrency: {
-                    name: "BDAG",
-                    symbol: "BDAG",
-                    decimals: 18,
-                  },
-                },
-              ],
-            });
-          } else {
-            throw switchErr;
-          }
-        }
-      }
-
-      const walletClient = createWalletClient({
-        chain: {
-          id: chainId,
-          name: getNetworkConfig().name,
-          nativeCurrency: { name: "BDAG", symbol: "BDAG", decimals: 18 },
-          rpcUrls: { default: { http: [BLOCKDAG_RPC] } },
-        },
-        transport: custom(ethereum),
-      });
-      const publicClient = createPublicClient({
-        chain: {
-          id: chainId,
-          name: getNetworkConfig().name,
-          nativeCurrency: { name: "BDAG", symbol: "BDAG", decimals: 18 },
-          rpcUrls: { default: { http: [BLOCKDAG_RPC] } },
-        },
-        transport: http(BLOCKDAG_RPC),
-      });
-
-      const [account] = await walletClient.getAddresses();
-      if (!account) throw new Error("No account found.");
-
-      const amountWei = BigInt(Math.floor(Number(amount) * 1e18));
-
-      // approve if needed
-      const allowance = (await publicClient.readContract({
-        address: kpToken.address,
-        abi: knowledgePointTokenAbi,
-        functionName: "allowance",
-        args: [account, predictionManager.address],
-      })) as bigint;
-      if (allowance < amountWei) {
-        const approveGas = await publicClient.estimateContractGas({
-          address: kpToken.address,
-          abi: knowledgePointTokenAbi,
-          functionName: "approve",
-          args: [predictionManager.address, amountWei],
-          account,
-        });
-        await walletClient.writeContract({
-          address: kpToken.address,
-          abi: knowledgePointTokenAbi,
-          functionName: "approve",
-          args: [predictionManager.address, amountWei],
-          account,
-          gas: (approveGas * 11n) / 10n,
-        });
-      }
-
-      const choice = outcome === "YES" ? 1 : 2; // enum Outcome {INVALID, YES, NO}
-      const stakeGas = await publicClient.estimateContractGas({
-        address: predictionManager.address,
-        abi: predictionManagerAbi,
-        functionName: "placePrediction",
-        args: [BigInt(market.id), choice, amountWei],
-        account,
-      });
-
-      const txHash = await walletClient.writeContract({
-        address: predictionManager.address,
-        abi: predictionManagerAbi,
-        functionName: "placePrediction",
-        args: [BigInt(market.id), choice, amountWei],
-        account,
-        gas: (stakeGas * 11n) / 10n,
-      });
-      setTx(txHash);
-      if (onPlaced) onPlaced();
-      await publicClient.waitForTransactionReceipt({ hash: txHash });
-    } catch (e: any) {
-      setErr(e?.shortMessage || e?.message || "Transaction failed");
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  return (
-    <div className="flex flex-col gap-3 p-4 rounded-xl bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-primary">
-          #{market.id} • {market.category || "Uncategorized"}
-        </span>
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          {market.deadlineTimestamp
-            ? new Date(market.deadlineTimestamp * 1000).toLocaleString()
-            : "—"}
-        </span>
-      </div>
-      <p className="text-white font-bold leading-snug">
-        {market.contentCID || "Untitled market"}
-      </p>
-      <p className="text-xs text-gray-500 dark:text-gray-400">
-        Oracle: {market.oracle}
-      </p>
-      <div className="flex items-center gap-2">
-        <Input
-          label="Stake KP"
-          name="stake"
-          type="number"
-          min={0}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          className="flex-1"
-        />
-      </div>
-      <div className="flex gap-2">
-        <Button
-          className="flex-1"
-          disabled={loading !== null}
-          onClick={() => handleStake("YES")}
-        >
-          {loading === "YES" ? "Staking..." : "Yes"}
-        </Button>
-        <Button
-          variant="secondary"
-          className="flex-1"
-          disabled={loading !== null}
-          onClick={() => handleStake("NO")}
-        >
-          {loading === "NO" ? "Staking..." : "No"}
-        </Button>
-      </div>
-      {err && (
-        <div className="text-sm text-red-400 bg-red-400/10 border border-red-400/40 rounded px-3 py-2">
-          {err}
-        </div>
-      )}
-      {tx && (
-        <div className="text-sm text-emerald-400 bg-emerald-400/10 border border-emerald-400/40 rounded px-3 py-2 break-all">
-          Tx: {tx}
-        </div>
-      )}
-    </div>
-  );
-};
-
-const KPStat: React.FC<{ label: string; value: string | number }> = ({
-  label,
-  value,
-}) => (
-  <div className="flex flex-col gap-1 rounded p-3 bg-background-light dark:bg-background-dark">
-    <p className="text-gray-500 dark:text-gray-400 text-xs font-medium uppercase tracking-wider">
-      {label}
-    </p>
-    <p className="text-gray-900 dark:text-white text-xl font-bold">{value}</p>
-  </div>
-);
-
-const PredictionCard: React.FC<{
-  data: (typeof PREDICTIONS)[number];
-  className?: string;
-}> = ({ data, className }) => (
-  <div
-    className={`flex flex-col gap-4 p-4 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10 ${
-      className || ""
-    }`}
-  >
-    <p className="font-bold text-gray-900 dark:text-white text-lg">
-      {data.title}
-    </p>
-    <div className="space-y-2">
-      <div className="flex justify-between items-center text-sm">
-        <p className="text-gray-500 dark:text-gray-400">Your Prediction:</p>
-        <p className="font-bold text-gray-900 dark:text-white">
-          {data.userPrediction}
-        </p>
-      </div>
-      <div className="flex justify-between items-center text-sm">
-        <p className="text-gray-500 dark:text-gray-400">Potential Winnings:</p>
-        <p className="font-bold text-green-500">+{data.potentialWinnings} KP</p>
-      </div>
-    </div>
-
-    <div className="w-full bg-gray-200 dark:bg-black/20 rounded-full h-1.5 mt-1">
-      <div
-        className="bg-primary h-1.5 rounded-full transition-all duration-500 ease-out"
-        style={{ width: `${data.progress}%` }}
-      />
-    </div>
-    <p className="text-xs text-gray-400 dark:text-gray-500 text-right">
-      Closes in {data.closingIn}
-    </p>
-  </div>
-);
+import { Header } from "./Header";
+import { Sidebar } from "./Sidebar";
+import { MobileBottomNav } from "./MobileBottomNav";
+import { MarketCard } from "./MarketCard";
+import { CrowdWisdomMarketCard } from "./CrowdWisdomMarketCard";
+import { OnchainPredictionCard } from "./OnchainPredictionCard";
+import { CongratulationsModal } from "./create/CongratulationsModal";
+import { ComingSoon } from "./ComingSoon";
 
 const LeagueItem: React.FC<{
   user: (typeof LEAGUE_MEMBERS)[number];
@@ -316,146 +70,29 @@ const LeagueItem: React.FC<{
   </div>
 );
 
-export const Header: React.FC = () => {
-  return (
-    <header className="fixed top-0 z-50 w-full bg-background-light/80 dark:bg-background-dark/80 backdrop-blur-sm border-b border-gray-200 dark:border-white/10">
-      <div className="container mx-auto px-6">
-        <div className="flex items-center justify-between h-20">
-          <div className="flex items-center gap-8">
-            <Image
-              src={"/Logo2.png"}
-              alt="Logo"
-              width={100}
-              height={50}
-              className="w-10"
-            />
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-              Forescene
-            </h2>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="hidden lg:flex flex-col min-w-40 h-10 max-w-64">
-              <div className="flex w-full flex-1 items-stretch rounded-full h-full group">
-                <div className="text-gray-400 dark:text-gray-500 flex bg-surface-light dark:bg-surface-dark items-center justify-center pl-4 rounded-l-full border border-gray-200 dark:border-white/10 border-r-0 group-focus-within:border-primary group-focus-within:text-primary transition-colors">
-                  <Icons.Search className="w-5 h-5" />
-                </div>
-                <input
-                  className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-r-full text-gray-800 dark:text-white focus:outline-0 focus:ring-0 border border-gray-200 dark:border-white/10 border-l-0 bg-surface-light dark:bg-surface-dark h-full placeholder:text-gray-400 dark:placeholder:text-gray-500 px-4 pl-2 text-sm group-focus-within:border-primary transition-colors"
-                  placeholder="Search events..."
-                />
-              </div>
-            </label>
-            <button className="flex items-center justify-center rounded-full h-10 w-10 bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:bg-primary/20 hover:text-primary transition-colors relative">
-              <Icons.Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border-2 border-surface-light dark:border-surface-dark"></span>
-            </button>
-            <div
-              className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-12 border-2 border-primary cursor-pointer hover:opacity-90 transition-opacity"
-              style={{ backgroundImage: `url("${CURRENT_USER.avatar}")` }}
-            />
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-};
-
-export const Sidebar: React.FC<{
-  active: string;
-  onSelect: (id: string) => void;
-  onOpenCreate: () => void;
-}> = ({ active, onSelect, onOpenCreate }) => {
-  const NAV_ITEMS: NavItem[] = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: Icons.Dashboard,
-      href: "#",
-      isActive: active === "dashboard",
-    },
-    {
-      id: "feed",
-      label: "Feed",
-      icon: Icons.Events,
-      href: "#",
-      isActive: active === "feed",
-    },
-    {
-      id: "leagues",
-      label: "Leagues",
-      icon: Icons.Leagues,
-      href: "#",
-      isActive: active === "leagues",
-    },
-    {
-      id: "leaderboard",
-      label: "Leaderboard",
-      icon: Icons.Leaderboard,
-      href: "#",
-      isActive: active === "leaderboard",
-    },
-    {
-      id: "history",
-      label: "History",
-      icon: Icons.History,
-      href: "#",
-      isActive: active === "history",
-    },
-  ];
-  return (
-    <aside className="fixed top-24 h-[calc(100vh-7rem)] w-64 flex-col gap-8 bg-surface-light dark:bg-surface-dark p-6 hidden lg:flex border-r border-gray-200 dark:border-white/10 z-20">
-      <nav className="flex flex-col gap-2">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => onSelect(item.id)}
-            className={`text-left flex items-center gap-4 px-4 py-3 rounded-lg transition-colors font-medium ${
-              item.isActive
-                ? "bg-primary/20 text-primary font-bold"
-                : "text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-white/10"
-            }`}
-          >
-            <item.icon className="w-6 h-6" />
-            <p>{item.label}</p>
-          </button>
-        ))}
-      </nav>
-      <div className="mt-auto flex flex-col gap-4">
-        <button
-          onClick={onOpenCreate}
-          className="flex w-full cursor-pointer items-center justify-center gap-2 overflow-hidden rounded-full h-12 px-6 bg-primary text-white text-base font-bold shadow-lg shadow-primary/20 hover:opacity-90 transition-opacity"
-        >
-          <span>Create Prediction</span>
-        </button>
-        <a
-          href="#"
-          className="flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-gray-300 transition-colors font-medium"
-        >
-          <Icons.Settings className="w-6 h-6" />
-          <p>Settings</p>
-        </a>
-      </div>
-    </aside>
-  );
-};
-
 export default function RevampedDashboard() {
   const [active, setActive] = useState<
     "dashboard" | "feed" | "leagues" | "leaderboard" | "history"
   >("dashboard");
   const [createOpen, setCreateOpen] = useState(false);
+  const [congratsOpen, setCongratsOpen] = useState(false);
+  const [newMarketId, setNewMarketId] = useState<number | undefined>();
+  const [newMarketQuestion, setNewMarketQuestion] = useState<string>("");
   const {
     markets,
     loading: marketsLoading,
     error: marketsError,
     refetch: refetchMarkets,
   } = useOnchainMarkets();
+
   const { authenticated, ready } = usePrivy();
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [kpBalance, setKpBalance] = useState<string>("0");
   const [kpLoading, setKpLoading] = useState(false);
 
   // fetch connected privy wallet
+
+  console.log("markets", markets);
   useMemo(() => {
     if (typeof window === "undefined") return;
     const eth = (window as any).ethereum;
@@ -480,14 +117,28 @@ export default function RevampedDashboard() {
   }, [markets]);
 
   const myActivePositions = useMemo(
-    () => positions.filter((p) => p.yesAmountRaw > 0n || p.noAmountRaw > 0n),
+    () =>
+      positions.filter(
+        (p) => p.yesAmountRaw > BigInt(0) || p.noAmountRaw > BigInt(0)
+      ),
     [positions]
   );
+
+  // Create a map of marketId -> user position for quick lookup
+  const positionMap = useMemo(() => {
+    const map = new Map<number, (typeof positions)[0]>();
+    positions.forEach((p) => {
+      if (p.yesAmountRaw > BigInt(0) || p.noAmountRaw > BigInt(0)) {
+        map.set(p.marketId, p);
+      }
+    });
+    return map;
+  }, [positions]);
 
   const totalStakedKP = useMemo(() => {
     return myActivePositions.reduce(
       (acc, p) => acc + p.yesAmountRaw + p.noAmountRaw,
-      0n
+      BigInt(0)
     );
   }, [myActivePositions]);
 
@@ -520,7 +171,7 @@ export default function RevampedDashboard() {
           address: kpToken.address,
           abi: knowledgePointTokenAbi,
           functionName: "balanceOf",
-          args: [walletAddress],
+          args: [walletAddress as `0x${string}`],
         })) as bigint;
         setKpBalance(formatKP(bal));
       } catch {
@@ -534,7 +185,7 @@ export default function RevampedDashboard() {
   return (
     <div className="bg-background-light dark:bg-background-dark text-gray-800 dark:text-gray-200 min-h-screen">
       <Header />
-      <main className="container mx-auto  pb-10 pt-24">
+      <main className="container mx-auto px-4 sm:px-6 pb-20 sm:pb-10 pt-20 sm:pt-24">
         <div className="grid grid-cols-12 gap-8">
           {/* Left Sidebar */}
           <div className="hidden lg:block lg:col-span-3">
@@ -551,139 +202,156 @@ export default function RevampedDashboard() {
               active === "feed" || active === "leaderboard"
                 ? "lg:col-span-9"
                 : "lg:col-span-6"
-            } min-w-0 flex flex-col gap-8`}
+            } min-w-0 flex flex-col gap-6 sm:gap-8`}
           >
             {active === "dashboard" ? (
               <>
                 {/* Welcome Card */}
-                <div className="flex flex-col md:flex-row gap-6 p-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
-                  <div
-                    className="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-20 shrink-0 border-4 border-background-light dark:border-background-dark"
-                    style={{ backgroundImage: `url("${CURRENT_USER.avatar}")` }}
-                  />
-                  <div className="flex flex-col w-full">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div>
-                        <h2 className="text-gray-900 dark:text-white text-2xl font-bold leading-normal">
-                          Welcome back, {CURRENT_USER.name}!
-                        </h2>
-                        <p className="text-primary text-base font-medium leading-normal">
-                          {CURRENT_USER.title}
-                        </p>
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-surface-light via-surface-light to-primary/5 dark:from-surface-dark dark:via-surface-dark dark:to-primary/10 border border-gray-200 dark:border-white/10 shadow-lg hover:shadow-xl transition-all duration-300">
+                  {/* Decorative gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-transparent dark:from-primary/10 pointer-events-none" />
+
+                  <div className="relative flex flex-col lg:flex-row gap-6 p-6 sm:p-8">
+                    {/* Avatar Section */}
+                    <div className="flex-shrink-0 flex justify-center lg:justify-start">
+                      <div className="relative">
+                        <div
+                          className="bg-center bg-no-repeat aspect-square bg-cover rounded-2xl size-20 sm:size-24 lg:size-28 shadow-lg ring-4 ring-white/50 dark:ring-white/10"
+                          style={{
+                            backgroundImage: `url("${CURRENT_USER.avatar}")`,
+                          }}
+                        />
                       </div>
-                      <button className="flex items-center gap-2 px-4 py-2 text-sm font-bold rounded-full bg-primary/20 text-primary hover:bg-primary/30 transition-colors self-start sm:self-center">
-                        <Icons.Edit className="w-4 h-4" />
-                        <span>Edit Profile</span>
-                      </button>
                     </div>
-                    <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <KPStat
-                        label="Knowledge Points"
-                        value={kpLoading ? "Loading..." : `${kpBalance} KP`}
-                      />
-                      <KPStat
-                        label="Global Rank"
-                        value={`#${CURRENT_USER.rank}`}
-                      />
-                      <KPStat
-                        label="Total Bets"
-                        value={
-                          positionsLoading
-                            ? "Loading..."
-                            : `${myActivePositions.length}`
-                        }
-                      />
-                      <KPStat label="Win Rate" value="67%" />
+
+                    {/* Content Section */}
+                    <div className="flex-1 flex flex-col gap-6">
+                      {/* Header with Name and Edit Button */}
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        <div className="text-center lg:text-left">
+                          <p className="text-xs sm:text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">
+                            Welcome Back
+                          </p>
+                          {/* <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-gray-900 dark:text-white leading-tight mb-2">
+                            {CURRENT_USER.name}
+                          </h2> */}
+                          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 dark:bg-primary/20 border border-primary/20">
+                            <span className="text-xs sm:text-sm font-bold text-primary">
+                              {CURRENT_USER.title}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Stats Grid */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                        <div className="group relative overflow-hidden rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 p-4 hover:bg-white/80 dark:hover:bg-white/10 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-200 hover:shadow-md">
+                          <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            KP Balance
+                          </p>
+                          <p className="text-sm  pr-3  font-black text-gray-900 dark:text-white">
+                            {kpLoading ? (
+                              <span className="inline-block  w-16 h-6 bg-gray-200 dark:bg-white/10 rounded animate-pulse" />
+                            ) : (
+                              `${kpBalance} KP`
+                            )}
+                          </p>
+                        </div>
+                        <div className="group relative overflow-hidden rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 p-4 hover:bg-white/80 dark:hover:bg-white/10 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-200 hover:shadow-md">
+                          <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            Global Rank
+                          </p>
+                          <p className="text-xl sm:text-2xl font-black text-primary">
+                            #{CURRENT_USER.rank}
+                          </p>
+                        </div>
+                        <div className="group relative overflow-hidden rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 p-4 hover:bg-white/80 dark:hover:bg-white/10 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-200 hover:shadow-md">
+                          <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            Total Bets
+                          </p>
+                          <p className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white">
+                            {positionsLoading ? (
+                              <span className="inline-block w-12 h-6 bg-gray-200 dark:bg-white/10 rounded animate-pulse" />
+                            ) : (
+                              myActivePositions.length
+                            )}
+                          </p>
+                        </div>
+                        <div className="group relative overflow-hidden rounded-xl bg-white/60 dark:bg-white/5 backdrop-blur-sm border border-gray-200/50 dark:border-white/10 p-4 hover:bg-white/80 dark:hover:bg-white/10 hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-200 hover:shadow-md">
+                          <p className="text-[10px] sm:text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1.5">
+                            Win Rate
+                          </p>
+                          <p className="text-xl sm:text-2xl font-black text-green-500">
+                            67%
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
                 {/* Portfolio Section */}
                 <div className="flex flex-col gap-4">
-                  <h2 className="text-gray-900 dark:text-white text-xl font-bold">
+                  <h2 className="text-gray-900 dark:text-white text-lg sm:text-xl font-bold">
                     My Portfolio
                   </h2>
-                  <div className="flex border-b border-gray-200 dark:border-white/10 mb-2">
-                    <button className="px-4 py-2 border-b-2 border-primary text-primary font-bold transition-colors">
-                      Active (3)
+                  <div className="flex border-b border-gray-200 dark:border-white/10 mb-2 overflow-x-auto">
+                    <button className="px-4 py-2 border-b-2 border-primary text-primary font-bold transition-colors whitespace-nowrap">
+                      Active ({myActivePositions.length})
                     </button>
-                    <button className="px-4 py-2 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium transition-colors">
-                      Past (15)
+                    <button className="px-4 py-2 border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 font-medium transition-colors whitespace-nowrap">
+                      Past (0)
                     </button>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <PredictionCard data={PREDICTIONS[0]} />
-                    <PredictionCard data={PREDICTIONS[1]} />
-                    <PredictionCard
-                      data={PREDICTIONS[2]}
-                      className="col-span-1 md:col-span-2"
-                    />
-                  </div>
-                </div>
-                {/* My Active On-chain Bets */}
-                <div className="flex flex-col gap-4">
-                  <div className="flex items-center justify-between">
-                    <h2 className="text-gray-900 dark:text-white text-xl font-bold">
-                      My Active On-chain Bets
-                    </h2>
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Total Staked: {formatKP(totalStakedKP)} KP
-                    </div>
                   </div>
                   {positionsLoading && (
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                      Loading your positions...
+                    <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                      Loading your predictions...
                     </div>
                   )}
                   {positionsError && (
-                    <div className="text-sm text-red-400">{positionsError}</div>
+                    <div className="text-sm text-red-400 py-4">
+                      {positionsError}
+                    </div>
                   )}
                   {!positionsLoading &&
                     !positionsError &&
                     myActivePositions.length === 0 && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        No active on-chain bets yet.
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
+                        No active predictions yet. Create one to get started!
                       </div>
                     )}
                   {!positionsLoading &&
                     !positionsError &&
                     myActivePositions.length > 0 && (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                         {myActivePositions.map((p) => {
                           const m = marketMap.get(p.marketId);
-                          const side =
-                            p.yesAmountRaw > 0n && p.noAmountRaw > 0n
-                              ? "Both"
-                              : p.yesAmountRaw > 0n
-                              ? "Yes"
-                              : "No";
-                          const staked = p.yesAmountRaw + p.noAmountRaw;
-                          return (
-                            <div
-                              key={p.marketId}
-                              className="flex flex-col gap-2 p-4 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="text-xs font-semibold text-primary">
-                                  #{p.marketId} •{" "}
-                                  {m?.category || "Uncategorized"}
-                                </span>
-                                <span className="text-xs text-gray-500 dark:text-gray-400">
-                                  {m?.deadlineTimestamp
-                                    ? new Date(
-                                        m.deadlineTimestamp * 1000
-                                      ).toLocaleString()
-                                    : "—"}
-                                </span>
-                              </div>
-                              <p className="text-white font-bold leading-snug">
-                                {m?.contentCID || "Untitled market"}
-                              </p>
-                              <div className="flex items-center justify-between text-sm text-gray-300">
-                                <span>Side: {side}</span>
-                                <span>Staked: {formatKP(staked)} KP</span>
-                              </div>
-                            </div>
-                          );
+                          if (!m) return null;
+                          // Use appropriate card based on market type
+                          if (m.marketType === 0) {
+                            // CrowdWisdom market - use CrowdWisdomMarketCard
+                            return (
+                              <CrowdWisdomMarketCard
+                                key={p.marketId}
+                                market={m}
+                                onPlaced={() => {
+                                  refetchPositions();
+                                  refetchMarkets();
+                                }}
+                              />
+                            );
+                          } else {
+                            // Binary market - use OnchainPredictionCard
+                            return (
+                              <OnchainPredictionCard
+                                key={p.marketId}
+                                market={m}
+                                userStake={{
+                                  yesAmountRaw: p.yesAmountRaw,
+                                  noAmountRaw: p.noAmountRaw,
+                                }}
+                              />
+                            );
+                          }
                         })}
                       </div>
                     )}
@@ -694,52 +362,129 @@ export default function RevampedDashboard() {
                 {/* Featured horizontal scroller */}
                 <FeaturedSection items={FEATURED_ITEMS} />
                 {/* Live Prediction Feed */}
-                <div className="flex flex-col gap-4">
-                  <h2 className="text-gray-900 dark:text-white text-xl font-bold">
+                <div className="flex flex-col gap-6 sm:gap-8">
+                  <h2 className="text-gray-900 dark:text-white text-lg sm:text-xl font-bold">
                     Explore Predictions
                   </h2>
-                  {/* On-chain active markets */}
-                  <div className="flex flex-col gap-3">
+
+                  {/* Binary Markets Section */}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                        Binary Markets
+                      </h3>
+                      <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        {markets.filter((m) => m.marketType === 1).length}{" "}
+                        active
+                      </span>
+                    </div>
                     {marketsLoading && (
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        Loading on-chain markets...
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                        Loading binary markets...
                       </div>
                     )}
                     {marketsError && (
-                      <div className="text-sm text-red-400">{marketsError}</div>
+                      <div className="text-sm text-red-400 py-4">
+                        {marketsError}
+                      </div>
                     )}
                     {!marketsLoading &&
                       !marketsError &&
-                      markets.length === 0 && (
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          No active on-chain markets yet.
-                        </div>
-                      )}
-                    {!marketsLoading && !marketsError && markets.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                        {markets.map((m) => (
-                          <MarketCard
-                            key={m.id}
-                            market={m}
-                            onPlaced={() => {
-                              refetchMarkets();
-                              refetchPositions();
-                            }}
-                          />
-                        ))}
+                      (() => {
+                        const binaryMarkets = markets.filter(
+                          (m) => m.marketType === 1
+                        );
+                        if (binaryMarkets.length === 0) {
+                          return (
+                            <div className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
+                              No binary markets yet.
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                            {binaryMarkets.map((m) => {
+                              const userPosition = positionMap.get(m.id);
+                              return (
+                                <MarketCard
+                                  key={m.id}
+                                  market={m}
+                                  userStake={
+                                    userPosition
+                                      ? {
+                                          yesAmountRaw:
+                                            userPosition.yesAmountRaw,
+                                          noAmountRaw: userPosition.noAmountRaw,
+                                        }
+                                      : undefined
+                                  }
+                                  onPlaced={() => {
+                                    refetchMarkets();
+                                    refetchPositions();
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                  </div>
+
+                  {/* CrowdWisdom Markets Section */}
+                  <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
+                        CrowdWisdom Markets
+                      </h3>
+                      <span className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                        {markets.filter((m) => m.marketType === 0).length}{" "}
+                        active
+                      </span>
+                    </div>
+                    {marketsLoading && (
+                      <div className="text-sm text-gray-500 dark:text-gray-400 py-4">
+                        Loading CrowdWisdom markets...
                       </div>
                     )}
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                    {PREDICTION_FEED.map((item) => (
-                      <FeedPredictionCard
-                        key={item.id}
-                        item={item}
-                        onPredict={(id: string, choice: "Yes" | "No") => {
-                          console.log("predict", id, choice);
-                        }}
-                      />
-                    ))}
+                    {marketsError && (
+                      <div className="text-sm text-red-400 py-4">
+                        {marketsError}
+                      </div>
+                    )}
+                    {!marketsLoading &&
+                      !marketsError &&
+                      (() => {
+                        const crowdWisdomMarkets = markets.filter(
+                          (m) => m.marketType === 0
+                        );
+                        if (crowdWisdomMarkets.length === 0) {
+                          return (
+                            <div className="text-sm text-gray-500 dark:text-gray-400 py-8 text-center">
+                              No CrowdWisdom markets yet. Create one to get
+                              started!
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                            {crowdWisdomMarkets.map((m) => {
+                              // For CrowdWisdom, we'll check if user has any stake
+                              // The component will fetch the actual outcome stake internally
+                              // For now, we pass undefined and let the component handle it
+                              return (
+                                <CrowdWisdomMarketCard
+                                  key={m.id}
+                                  market={m}
+                                  onPlaced={() => {
+                                    refetchMarkets();
+                                    refetchPositions();
+                                  }}
+                                />
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
                   </div>
                 </div>
               </>
@@ -748,15 +493,25 @@ export default function RevampedDashboard() {
                 <StatsCard />
                 <Leaderboard players={LEADERBOARD_PLAYERS} />
               </>
+            ) : active === "leagues" ? (
+              <ComingSoon
+                title="Leagues"
+                description="Compete with friends and climb the leaderboards. Create or join leagues to see who's the best predictor!"
+              />
+            ) : active === "history" ? (
+              <ComingSoon
+                title="History"
+                description="View your complete prediction history, track your wins and losses, and analyze your performance over time."
+              />
             ) : null}
           </div>
 
           {/* Right Column (dashboard only) */}
           {active === "dashboard" && (
             <aside className="col-span-12 lg:col-span-3">
-              <div className="sticky top-28 flex flex-col gap-8">
+              <div className="sticky top-20 sm:top-28 flex flex-col gap-6 sm:gap-8">
                 {/* League Standings */}
-                <div className="flex flex-col gap-4 p-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
+                <div className="flex flex-col gap-4 p-4 sm:p-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                       League Standings
@@ -787,7 +542,7 @@ export default function RevampedDashboard() {
                 </div>
 
                 {/* Activity Feed */}
-                <div className="flex flex-col gap-4 p-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
+                <div className="flex flex-col gap-4 p-4 sm:p-6 rounded-lg bg-surface-light dark:bg-surface-dark border border-gray-200 dark:border-white/10">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                     Activity Feed
                   </h3>
@@ -843,6 +598,32 @@ export default function RevampedDashboard() {
       <CreatePredictionModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
+        onSuccess={(marketId, question) => {
+          setNewMarketId(marketId);
+          setNewMarketQuestion(question);
+          setCreateOpen(false);
+          setCongratsOpen(true);
+          // Refresh markets and positions after a short delay
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }}
+      />
+      {/* Congratulations Modal */}
+      <CongratulationsModal
+        isOpen={congratsOpen}
+        onClose={() => {
+          setCongratsOpen(false);
+          setActive("dashboard");
+        }}
+        marketId={newMarketId}
+        question={newMarketQuestion}
+      />
+      {/* Mobile Bottom Navigation */}
+      <MobileBottomNav
+        active={active}
+        onSelect={(id) => setActive(id as typeof active)}
+        onOpenCreate={() => setCreateOpen(true)}
       />
     </div>
   );
