@@ -2,7 +2,7 @@
 
 ## 💡 Vision & Goal
 
-**Forescene** is the next-generation Social Prediction Game, blending the proven accuracy of prediction markets with the high engagement of gamified competition. We turn passion for **African entertainment, music, and culture** into a skill-based, competitive game build on the bnb and BlockDag blockchain.
+**Forescene** is the  Social Prediction Game, blending the proven accuracy of prediction markets with the high engagement of gamified competition. We turn passion for **African entertainment, music, and culture** into a skill-based, competitive game build on the bnb and BlockDag blockchain.
 
 **The Goal:** To become the most trusted and engaging platform for forecasting the future of African culture, transforming cultural expertise into verifiable status and reward.
 

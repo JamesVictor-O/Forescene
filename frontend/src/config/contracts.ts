@@ -93,11 +93,11 @@ export const CONTRACTS = {
       abi: socialMetricsAbi,
     },
     kpToken: {
-      address: "0x50389e8ca7eA09AA04962667f4C4B8563AdaDefF",
+      address: "0x767CA5407f82A188e873aA164D1947947b2aBb8F",
       abi: knowledgePointTokenAbi,
     },
     predictionManager: {
-      address: "0x01D9654C521e955A1Ef98B8A5FdAbC5976Dc5B50",
+      address: "0xdC233dc086d0c88bCCF7f7CD57789522EE1D2104",
       abi: predictionManagerAbi,
     },
   },
